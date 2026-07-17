@@ -8,6 +8,7 @@ import {
 	defaultRoomConfig,
 	type ClientMessage,
 	type RoomConfig,
+	type PublicPlayer,
 	type RoomSnapshot,
 	type Role,
 	type ServerMessage
@@ -56,9 +57,18 @@ function normalizeConfig(raw: Partial<RoomConfig> | undefined): RoomConfig {
 	return { ...defaultRoomConfig(), ...raw };
 }
 
+function normalizePlayer(raw: Partial<PublicPlayer> & Pick<PublicPlayer, 'id' | 'name' | 'score' | 'connected' | 'isHost' | 'waitingNextGame' | 'isSpectator'>): PublicPlayer {
+	return {
+		...raw,
+		wantsRematch: raw.wantsRematch ?? false,
+		colorIndex: raw.colorIndex ?? 0
+	};
+}
+
 function normalizeRoom(raw: Partial<RoomSnapshot> & Pick<RoomSnapshot, 'code' | 'state' | 'players' | 'hostId' | 'turnOrder' | 'roundNumber'>): RoomSnapshot {
 	return {
 		...raw,
+		players: (raw.players ?? []).map(normalizePlayer),
 		config: normalizeConfig(raw.config),
 		currentTurnPlayerId: raw.currentTurnPlayerId ?? null,
 		impostorIds: raw.impostorIds ?? [],

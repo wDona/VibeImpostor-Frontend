@@ -61,8 +61,12 @@
 	// selectedCategoryIds vacío significa "todos los temas por defecto" en el server.
 	// Para poder quitar solo un par de ellos, la UI trata ese estado como "todo
 	// marcado" y calcula el complemento al desmarcar, en vez de partir de cero.
-	const allCategoryIds = $derived(categories.map((c) => c.id));
-	const effectiveSelected = $derived(config.selectedCategoryIds.length === 0 ? allCategoryIds : config.selectedCategoryIds);
+	const allCategoryIds = $derived(filteredCategories.map((c) => c.id));
+	const effectiveSelected = $derived(
+		config.selectedCategoryIds.length === 0
+			? allCategoryIds
+			: config.selectedCategoryIds.filter((id) => allCategoryIds.includes(id))
+	);
 	const allCategoriesSelected = $derived(
 		filteredCategories.length > 0 && filteredCategories.every((c) => effectiveSelected.includes(c.id))
 	);
@@ -374,7 +378,7 @@
 			>
 				<span class="text-xs tracking-[0.3em] text-amber uppercase">Temas de palabras</span>
 				<span class="text-sm text-paper-dim">
-					{config.selectedCategoryIds.length === 0 ? 'todos' : config.selectedCategoryIds.length} →
+					{config.selectedCategoryIds.length === 0 ? 'todos' : effectiveSelected.length} →
 				</span>
 			</button>
 		</section>
@@ -452,7 +456,7 @@
 			<p class="text-paper-dim">Tiempo de voto: <span class="text-paper">{config.voteTimeLimitSeconds}s</span></p>
 			<p class="text-paper-dim">Idioma de las palabras: <span class="text-paper">{config.language === 'en' ? 'English' : 'Español'}</span></p>
 			<p class="text-paper-dim">
-				Temas de palabras: <span class="text-paper">{config.selectedCategoryIds.length === 0 ? 'todos' : config.selectedCategoryIds.length}</span>
+				Temas de palabras: <span class="text-paper">{config.selectedCategoryIds.length === 0 ? 'todos' : effectiveSelected.length}</span>
 			</p>
 			<div>
 				<p class="text-paper-dim">Variante de juego: <span class="text-paper">{activeMode.label}</span></p>
