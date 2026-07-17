@@ -107,6 +107,7 @@ class GameStore {
 
 	error = $state<string | null>(null);
 	removedReason = $state<string | null>(null);
+	spectatorJoinedNotice = $state<string | null>(null);
 	private updateConfigTimer: ReturnType<typeof setTimeout> | null = null;
 	private pendingConfig: RoomConfig | null = null;
 
@@ -197,6 +198,7 @@ class GameStore {
 		this.endGameProposal = null;
 		this.lastWordPlayed = null;
 		this.error = null;
+		this.spectatorJoinedNotice = null;
 	}
 
 	private registerEliminationVotes(ejectedPlayerId: string | null, votes: Record<string, string>) {
@@ -229,7 +231,14 @@ class GameStore {
 				break;
 			}
 			case 'RoomUpdated': {
+				const prevIds = new Set(this.room?.players.map((p) => p.id) ?? []);
 				this.room = normalizeRoom(msg.room);
+				if (this.room.state !== 'LOBBY') {
+					const newSpectators = this.room.players.filter((p) => p.isSpectator && !prevIds.has(p.id));
+					if (newSpectators.length) {
+						this.spectatorJoinedNotice = `${newSpectators.map((p) => p.name).join(', ')} se ha unido a la sala y está viendo la partida`;
+					}
+				}
 				if (this.room.state === 'FINISHED') {
 					if (this.screen === 'IMPOSTOR_GUESSING') this.screen = 'IMPOSTOR_GUESSING_RESULT';
 					else if (['ROUND_RESULT', 'GAME', 'VOTING', 'ASK_VOTE'].includes(this.screen)) this.screen = 'RESULT';
