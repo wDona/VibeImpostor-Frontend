@@ -1,5 +1,10 @@
 import { WS_URL } from './config';
-import type { ClientMessage, RoomSnapshot, Role, ServerMessage } from './protocol';
+import { defaultRoomConfig, type ClientMessage, type RoomConfig, type RoomSnapshot, type Role, type ServerMessage } from './protocol';
+
+// kotlinx.serialization usa el nombre completo cualificado de la clase Kotlin
+// como discriminador "type" en el wire — no el nombre corto del sealed member.
+const CLIENT_PREFIX = 'org.example.project.protocol.ClientMessage.';
+const SERVER_PREFIX = 'org.example.project.protocol.ServerMessage.';
 
 interface VotingInfo {
 	candidateIds: string[];
@@ -17,6 +22,28 @@ interface VotingResultInfo {
 interface EndGameProposal {
 	agreedPlayerIds: string[];
 	totalActive: number;
+}
+
+// kotlinx.serialization con encodeDefaults=false omite del wire cualquier campo
+// que quede en su valor por defecto de Kotlin — hay que rellenarlos al recibir.
+function normalizeConfig(raw: Partial<RoomConfig> | undefined): RoomConfig {
+	return { ...defaultRoomConfig(), ...raw };
+}
+
+function normalizeRoom(raw: Partial<RoomSnapshot> & Pick<RoomSnapshot, 'code' | 'state' | 'players' | 'hostId' | 'turnOrder' | 'roundNumber'>): RoomSnapshot {
+	return {
+		...raw,
+		config: normalizeConfig(raw.config),
+		currentTurnPlayerId: raw.currentTurnPlayerId ?? null,
+		impostorIds: raw.impostorIds ?? [],
+		impostorGuesses: raw.impostorGuesses ?? {},
+		pendingGuessImpostorId: raw.pendingGuessImpostorId ?? null,
+		lastWinners: raw.lastWinners ?? [],
+		continueResponses: raw.continueResponses ?? [],
+		isInPunishmentRound: raw.isInPunishmentRound ?? false,
+		punishmentPlayerId: raw.punishmentPlayerId ?? null,
+		chosenVariant: raw.chosenVariant ?? null
+	};
 }
 
 class GameStore {
@@ -48,18 +75,21 @@ class GameStore {
 		socket.onclose = () => {
 			this.connected = false;
 		};
-		socket.onmessage = (event) => this.handleMessage(JSON.parse(event.data) as ServerMessage);
+		socket.onmessage = (event) => {
+			const raw = JSON.parse(event.data);
+			raw.type = String(raw.type).replace(SERVER_PREFIX, '');
+			this.handleMessage(raw as ServerMessage);
+		};
 		this.socket = socket;
 	}
 
 	send(message: ClientMessage) {
 		this.connect();
+		const wire = JSON.stringify({ ...message, type: CLIENT_PREFIX + message.type });
 		if (this.socket?.readyState === WebSocket.OPEN) {
-			this.socket.send(JSON.stringify(message));
+			this.socket.send(wire);
 		} else {
-			this.socket?.addEventListener('open', () => this.socket?.send(JSON.stringify(message)), {
-				once: true
-			});
+			this.socket?.addEventListener('open', () => this.socket?.send(wire), { once: true });
 		}
 	}
 
@@ -81,17 +111,17 @@ class GameStore {
 		switch (msg.type) {
 			case 'Joined':
 				this.yourPlayerId = msg.yourPlayerId;
-				this.room = msg.room;
+				this.room = normalizeRoom(msg.room);
 				break;
 			case 'RoomUpdated':
-				this.room = msg.room;
+				this.room = normalizeRoom(msg.room);
 				break;
 			case 'GameStarted':
-				this.room = msg.room;
+				this.room = normalizeRoom(msg.room);
 				this.yourRole = msg.yourRole;
 				this.contentIsWord = msg.contentIsWord;
 				this.content = msg.content;
-				this.hintList = msg.hintList;
+				this.hintList = msg.hintList ?? [];
 				this.askVoteDeadline = null;
 				this.voting = null;
 				this.votingResult = null;
@@ -116,26 +146,26 @@ class GameStore {
 			case 'VoteCast':
 				break;
 			case 'VotingResult':
-				this.room = msg.room;
+				this.room = normalizeRoom(msg.room);
 				this.voting = null;
 				this.votingResult = {
 					ejectedPlayerId: msg.ejectedPlayerId,
 					wasImpostor: msg.wasImpostor,
-					votes: msg.votes,
-					voteTypes: msg.voteTypes,
+					votes: msg.votes ?? {},
+					voteTypes: msg.voteTypes ?? {},
 					punishmentPlayerId: msg.punishmentPlayerId ?? null
 				};
 				break;
 			case 'RoundContinues':
-				this.room = msg.room;
+				this.room = normalizeRoom(msg.room);
 				this.votingResult = null;
 				break;
 			case 'ProceedToGuessing':
-				this.room = msg.room;
+				this.room = normalizeRoom(msg.room);
 				this.votingResult = null;
 				break;
 			case 'GameEnded':
-				this.room = msg.room;
+				this.room = normalizeRoom(msg.room);
 				this.voting = null;
 				this.votingResult = null;
 				break;
@@ -143,10 +173,10 @@ class GameStore {
 				this.error = msg.text;
 				break;
 			case 'RematchStarted':
-				this.room = msg.room;
+				this.room = normalizeRoom(msg.room);
 				break;
 			case 'ReturnedToLobby':
-				this.room = msg.room;
+				this.room = normalizeRoom(msg.room);
 				this.yourRole = null;
 				this.content = null;
 				this.hintList = [];
