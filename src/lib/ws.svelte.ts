@@ -100,6 +100,13 @@ class GameStore {
 		this.send({ type: 'UpdateConfig', config });
 	}
 
+	// El server cierra el socket al recibir LeaveRoom sin mandar confirmación,
+	// así que hay que resetear el estado local nosotros mismos.
+	leaveRoom() {
+		this.send({ type: 'LeaveRoom' });
+		this.reset();
+	}
+
 	reset() {
 		this.yourPlayerId = null;
 		this.room = null;

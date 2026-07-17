@@ -27,7 +27,7 @@
 	}
 
 	function leave() {
-		gameStore.send({ type: 'LeaveRoom' });
+		gameStore.leaveRoom();
 	}
 
 	function kick(targetPlayerId: string) {
