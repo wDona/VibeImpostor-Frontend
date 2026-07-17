@@ -2,13 +2,19 @@
 	import { onMount } from 'svelte';
 	import { gameStore } from '$lib/ws.svelte';
 	import * as api from '$lib/api';
+	import { MIN_PLAYERS, type RoomConfig } from '$lib/protocol';
 
 	const room = $derived(gameStore.room!);
+	const config = $derived(room.config);
 	const isHost = $derived(room.hostId === gameStore.yourPlayerId);
-	const canStart = $derived(room.players.filter((p) => !p.isSpectator).length >= 3);
+	const activeCount = $derived(room.players.filter((p) => !p.isSpectator).length);
+	const canStart = $derived(activeCount >= MIN_PLAYERS);
+	const neededMore = $derived(Math.max(0, MIN_PLAYERS - activeCount));
+	const maxImpostors = $derived(room.players.length);
+	const impostorLocked = $derived(config.winOnFirstEjection || config.singleWordRound || config.hiddenImpostor);
 
-	function updateConfig(patch: Partial<typeof room.config>) {
-		gameStore.send({ type: 'UpdateConfig', config: { ...room.config, ...patch } });
+	function updateConfig(patch: Partial<RoomConfig>) {
+		gameStore.send({ type: 'UpdateConfig', config: { ...config, ...patch } });
 	}
 
 	function startGame() {
@@ -41,10 +47,88 @@
 		}
 	});
 
+	const filteredCategories = $derived(categories.filter((c) => c.language === config.language));
+	const allCategoriesSelected = $derived(
+		filteredCategories.length > 0 && filteredCategories.every((c) => config.selectedCategoryIds.includes(c.id))
+	);
+
 	function toggleCategory(id: number) {
-		const selected = room.config.selectedCategoryIds;
+		const selected = config.selectedCategoryIds;
 		const next = selected.includes(id) ? selected.filter((c) => c !== id) : [...selected, id];
 		updateConfig({ selectedCategoryIds: next });
+	}
+
+	function toggleAllCategories() {
+		const filteredIds = filteredCategories.map((c) => c.id);
+		const next = allCategoriesSelected
+			? config.selectedCategoryIds.filter((id) => !filteredIds.includes(id))
+			: [...new Set([...config.selectedCategoryIds, ...filteredIds])];
+		updateConfig({ selectedCategoryIds: next });
+	}
+
+	function setNumImpostors(delta: number) {
+		if (impostorLocked) return;
+		const next = config.numImpostors + delta;
+		if (next < 1 || next > maxImpostors) return;
+		updateConfig({ numImpostors: next });
+	}
+
+	function setVoteTime(delta: number) {
+		const next = config.voteTimeLimitSeconds + delta;
+		if (next < 15 || next > 180) return;
+		updateConfig({ voteTimeLimitSeconds: next });
+	}
+
+	type SpecialModeKey = 'normal' | 'noCategory' | 'hiddenRole' | 'progressiveHints' | 'hiddenImpostor' | 'random';
+
+	const SPECIAL_MODES: { key: SpecialModeKey; label: string; desc: string }[] = [
+		{ key: 'normal', label: 'Normal', desc: 'Modo estándar sin variantes' },
+		{ key: 'noCategory', label: 'Sin categoría', desc: 'El impostor no recibe categoría ni pistas' },
+		{ key: 'hiddenRole', label: 'Rol oculto', desc: 'Nadie sabe quién es el impostor hasta el final de la ronda' },
+		{ key: 'progressiveHints', label: 'Pistas progresivas', desc: 'El impostor recibe una pista nueva cada ronda' },
+		{
+			key: 'hiddenImpostor',
+			label: 'Impostor oculto',
+			desc: 'El impostor no sabe que lo es: recibe una palabra parecida (una pista) y cree que es inocente'
+		},
+		{ key: 'random', label: 'Aleatorio', desc: 'Se elige una variante al azar al empezar cada partida' }
+	];
+
+	const activeSpecialMode = $derived<SpecialModeKey>(
+		config.randomVariant
+			? 'random'
+			: config.hiddenImpostor
+				? 'hiddenImpostor'
+				: config.progressiveHints
+					? 'progressiveHints'
+					: config.hiddenRole
+						? 'hiddenRole'
+						: config.noCategory
+							? 'noCategory'
+							: 'normal'
+	);
+
+	function selectSpecialMode(key: SpecialModeKey) {
+		updateConfig({
+			randomVariant: key === 'random',
+			noCategory: key === 'noCategory',
+			hiddenRole: key === 'hiddenRole',
+			progressiveHints: key === 'progressiveHints',
+			hiddenImpostor: key === 'hiddenImpostor',
+			numImpostors: key === 'hiddenImpostor' || key === 'random' ? 1 : config.numImpostors,
+			winOnFirstEjection: key === 'progressiveHints' || key === 'random' ? false : config.winOnFirstEjection,
+			singleWordRound: key === 'progressiveHints' || key === 'random' ? false : config.singleWordRound
+		});
+	}
+
+	function toggleWinOnFirstEjection() {
+		const next = !config.winOnFirstEjection;
+		updateConfig(next ? { winOnFirstEjection: true, numImpostors: 1 } : { winOnFirstEjection: false });
+	}
+
+	function toggleSingleWordRound() {
+		const next = !config.singleWordRound;
+		updateConfig(next ? { singleWordRound: true, numImpostors: 1 } : { singleWordRound: false });
 	}
 </script>
 
@@ -101,74 +185,196 @@
 	</section>
 
 	{#if isHost}
-		<section class="mb-8 space-y-4 border border-wire bg-ink-raised/50 p-5">
-			<h2 class="text-xs tracking-[0.3em] text-amber uppercase">Configuración</h2>
-
-			<label class="flex items-center justify-between gap-4">
-				<span class="text-sm text-paper-dim">Impostores</span>
-				<input
-					type="number"
-					min="1"
-					max="3"
-					value={room.config.numImpostors}
-					onchange={(e) => updateConfig({ numImpostors: Number(e.currentTarget.value) })}
-					class="w-16 border-b-2 border-wire bg-transparent px-1 py-1 text-right text-paper outline-none focus:border-amber"
-				/>
-			</label>
-
-			<label class="flex items-center justify-between gap-4">
-				<span class="text-sm text-paper-dim">Tiempo de voto (s)</span>
-				<input
-					type="number"
-					min="15"
-					max="180"
-					step="15"
-					value={room.config.voteTimeLimitSeconds}
-					onchange={(e) => updateConfig({ voteTimeLimitSeconds: Number(e.currentTarget.value) })}
-					class="w-16 border-b-2 border-wire bg-transparent px-1 py-1 text-right text-paper outline-none focus:border-amber"
-				/>
-			</label>
-
-			<label class="flex items-center justify-between gap-4">
-				<span class="text-sm text-paper-dim">Rol oculto del impostor</span>
-				<input
-					type="checkbox"
-					checked={room.config.hiddenImpostor}
-					onchange={(e) => updateConfig({ hiddenImpostor: e.currentTarget.checked })}
-					class="h-5 w-5 accent-amber"
-				/>
-			</label>
-
-			<label class="flex items-center justify-between gap-4">
-				<span class="text-sm text-paper-dim">Pistas progresivas</span>
-				<input
-					type="checkbox"
-					checked={room.config.progressiveHints}
-					onchange={(e) => updateConfig({ progressiveHints: e.currentTarget.checked })}
-					class="h-5 w-5 accent-amber"
-				/>
-			</label>
-
-			{#if categories.length}
-				<div>
-					<span class="mb-2 block text-sm text-paper-dim">Categorías (vacío = todas)</span>
-					<div class="flex flex-wrap gap-2">
-						{#each categories as cat (cat.id)}
-							<button
-								type="button"
-								onclick={() => toggleCategory(cat.id)}
-								class={`border px-3 py-1 text-xs uppercase ${
-									room.config.selectedCategoryIds.includes(cat.id)
-										? 'border-amber bg-amber text-ink font-bold'
-										: 'border-wire text-paper-dim hover:border-amber-dim'
-								}`}
-							>
-								{cat.name}
-							</button>
-						{/each}
-					</div>
+		<section class="mb-6 grid grid-cols-1 gap-6 border border-wire bg-ink-raised/50 p-5 sm:grid-cols-2">
+			<div>
+				<span class="mb-2 block text-xs tracking-[0.3em] text-amber uppercase">Modo de juego</span>
+				<div class="flex gap-2">
+					<button
+						type="button"
+						onclick={() => updateConfig({ gameMode: 'VOICE' })}
+						class={`flex-1 border px-3 py-2 text-sm uppercase ${config.gameMode === 'VOICE' ? 'border-amber bg-amber text-ink font-bold' : 'border-wire text-paper-dim hover:border-amber-dim'}`}
+					>
+						Voz
+					</button>
+					<button
+						type="button"
+						onclick={() => updateConfig({ gameMode: 'TEXT' })}
+						class={`flex-1 border px-3 py-2 text-sm uppercase ${config.gameMode === 'TEXT' ? 'border-amber bg-amber text-ink font-bold' : 'border-wire text-paper-dim hover:border-amber-dim'}`}
+					>
+						Texto
+					</button>
 				</div>
+			</div>
+
+			<div>
+				<span class="mb-2 block text-xs tracking-[0.3em] text-amber uppercase">Idioma de las palabras</span>
+				<div class="flex gap-2">
+					<button
+						type="button"
+						onclick={() => updateConfig({ language: 'es' })}
+						class={`flex-1 border px-3 py-2 text-sm uppercase ${config.language === 'es' ? 'border-amber bg-amber text-ink font-bold' : 'border-wire text-paper-dim hover:border-amber-dim'}`}
+					>
+						Español
+					</button>
+					<button
+						type="button"
+						onclick={() => updateConfig({ language: 'en' })}
+						class={`flex-1 border px-3 py-2 text-sm uppercase ${config.language === 'en' ? 'border-amber bg-amber text-ink font-bold' : 'border-wire text-paper-dim hover:border-amber-dim'}`}
+					>
+						English
+					</button>
+				</div>
+			</div>
+
+			<div>
+				<span class="mb-2 block text-xs tracking-[0.3em] text-amber uppercase">Máx. impostores</span>
+				<div class="flex items-center gap-3">
+					<button
+						type="button"
+						onclick={() => setNumImpostors(-1)}
+						disabled={impostorLocked || config.numImpostors <= 1}
+						class="h-9 w-9 border border-wire text-paper disabled:cursor-not-allowed disabled:opacity-30"
+					>
+						−
+					</button>
+					<span class="w-6 text-center font-display text-xl font-bold text-paper">{config.numImpostors}</span>
+					<button
+						type="button"
+						onclick={() => setNumImpostors(1)}
+						disabled={impostorLocked || config.numImpostors >= maxImpostors}
+						class="h-9 w-9 border border-wire text-paper disabled:cursor-not-allowed disabled:opacity-30"
+					>
+						+
+					</button>
+				</div>
+				{#if config.numImpostors >= 2}
+					<p class="mt-1.5 text-[0.65rem] text-paper-dim italic">Hay ~5% de probabilidad de que no haya impostores</p>
+				{/if}
+			</div>
+
+			<div>
+				<span class="mb-2 block text-xs tracking-[0.3em] text-amber uppercase">Tiempo de voto</span>
+				<div class="flex items-center gap-3">
+					<button
+						type="button"
+						onclick={() => setVoteTime(-15)}
+						disabled={config.voteTimeLimitSeconds <= 15}
+						class="h-9 w-9 border border-wire text-paper disabled:cursor-not-allowed disabled:opacity-30"
+					>
+						−
+					</button>
+					<span class="w-10 text-center font-display text-xl font-bold text-paper">{config.voteTimeLimitSeconds}s</span>
+					<button
+						type="button"
+						onclick={() => setVoteTime(15)}
+						disabled={config.voteTimeLimitSeconds >= 180}
+						class="h-9 w-9 border border-wire text-paper disabled:cursor-not-allowed disabled:opacity-30"
+					>
+						+
+					</button>
+				</div>
+			</div>
+		</section>
+
+		<section class="mb-6 border border-wire bg-ink-raised/50 p-5">
+			<span class="mb-3 block text-xs tracking-[0.3em] text-amber uppercase">Variante de juego</span>
+			<div class="space-y-2">
+				{#each SPECIAL_MODES as mode (mode.key)}
+					{@const selected = activeSpecialMode === mode.key}
+					<button
+						type="button"
+						onclick={() => selectSpecialMode(mode.key)}
+						class={`block w-full border px-4 py-2.5 text-left transition-colors ${selected ? 'border-amber bg-amber/10' : 'border-wire hover:border-amber-dim'}`}
+					>
+						<span class={`block text-sm font-semibold ${selected ? 'text-amber' : 'text-paper'}`}>{mode.label}</span>
+						<span class="block text-xs text-paper-dim">{mode.desc}</span>
+					</button>
+				{/each}
+			</div>
+		</section>
+
+		{#if filteredCategories.length}
+			<section class="mb-6 border border-wire bg-ink-raised/50 p-5">
+				<div class="mb-3 flex items-center justify-between">
+					<span class="text-xs tracking-[0.3em] text-amber uppercase">
+						Temas de palabras — {config.selectedCategoryIds.length === 0 ? 'todos' : config.selectedCategoryIds.length}
+					</span>
+					<button type="button" onclick={toggleAllCategories} class="text-[0.65rem] tracking-widest text-paper-dim uppercase hover:text-amber">
+						{allCategoriesSelected ? 'Deseleccionar todo' : 'Seleccionar todos'}
+					</button>
+				</div>
+				<p class="mb-3 text-xs text-paper-dim italic">Si no eliges ninguno, se usan todos los temas base</p>
+				<div class="flex flex-wrap gap-2">
+					{#each filteredCategories as cat (cat.id)}
+						<button
+							type="button"
+							onclick={() => toggleCategory(cat.id)}
+							class={`border px-3 py-1 text-xs uppercase ${
+								config.selectedCategoryIds.includes(cat.id)
+									? 'border-amber bg-amber text-ink font-bold'
+									: 'border-wire text-paper-dim hover:border-amber-dim'
+							}`}
+						>
+							{cat.name}
+						</button>
+					{/each}
+				</div>
+			</section>
+		{/if}
+
+		<section class="mb-6 space-y-1 border border-wire bg-ink-raised/50 p-5">
+			{#if !config.progressiveHints}
+				<label class="flex cursor-pointer items-center justify-between gap-4 py-2">
+					<span class="text-sm text-paper-dim">Gana en primera expulsión</span>
+					<input
+						type="checkbox"
+						checked={config.winOnFirstEjection}
+						onchange={toggleWinOnFirstEjection}
+						class="h-5 w-5 accent-amber"
+					/>
+				</label>
 			{/if}
+
+			<label class="flex cursor-pointer items-center justify-between gap-4 py-2">
+				<span class="text-sm text-paper-dim">Votos anónimos</span>
+				<input
+					type="checkbox"
+					checked={config.anonymousVotes}
+					onchange={(e) => updateConfig({ anonymousVotes: e.currentTarget.checked })}
+					class="h-5 w-5 accent-amber"
+				/>
+			</label>
+
+			{#if !config.progressiveHints}
+				<label class="flex cursor-pointer items-center justify-between gap-4 py-2">
+					<span class="text-sm text-paper-dim">
+						Una sola ronda
+						<span class="block text-xs text-paper-dim/70">Solo una ronda en toda la partida, el impostor es expulsado al final</span>
+					</span>
+					<input
+						type="checkbox"
+						checked={config.singleWordRound}
+						onchange={toggleSingleWordRound}
+						class="h-5 w-5 shrink-0 accent-amber"
+					/>
+				</label>
+			{/if}
+
+			<label class="flex cursor-pointer items-center justify-between gap-4 py-2">
+				<span class="text-sm text-paper-dim">
+					Voto de sospechoso
+					<span class="block text-xs text-paper-dim/70">
+						Cada jugador se puede votar de dos modos: sospechoso o para echarlo. Si no hay empate, el más votado recibe un turno
+						extra en vez de ser expulsado directamente
+					</span>
+				</span>
+				<input
+					type="checkbox"
+					checked={config.punishmentVote}
+					onchange={(e) => updateConfig({ punishmentVote: e.currentTarget.checked })}
+					class="h-5 w-5 shrink-0 accent-amber"
+				/>
+			</label>
 		</section>
 
 		<button
@@ -176,7 +382,7 @@
 			disabled={!canStart}
 			class="w-full bg-blood py-4 text-sm font-bold tracking-[0.2em] text-paper uppercase transition-transform enabled:hover:bg-blood-bright disabled:cursor-not-allowed disabled:opacity-30"
 		>
-			{canStart ? 'Comenzar partida' : 'Se necesitan 3 jugadores'}
+			{canStart ? 'Comenzar partida' : `Se necesitan ${neededMore} jugadores más`}
 		</button>
 	{:else}
 		<p class="text-center text-sm text-paper-dim italic">Esperando a que el host inicie la partida...</p>

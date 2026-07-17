@@ -7,10 +7,11 @@
 	const voting = $derived(gameStore.voting!);
 
 	let votedFor = $state<string | null>(null);
+	const punishmentVote = $derived(room.config.punishmentVote);
 
-	function castVote(targetPlayerId: string) {
+	function castVote(targetPlayerId: string, voteIsHard = true) {
 		votedFor = targetPlayerId;
-		gameStore.send({ type: 'CastVote', targetPlayerId, voteIsHard: true });
+		gameStore.send({ type: 'CastVote', targetPlayerId, voteIsHard });
 	}
 </script>
 
@@ -28,17 +29,41 @@
 		{#each voting.candidateIds.filter((id) => id !== NOBODY_VOTE_ID) as pid (pid)}
 			{@const p = room.players.find((pl) => pl.id === pid)}
 			{#if p}
-				<button
-					onclick={() => castVote(pid)}
-					disabled={votedFor !== null}
-					class={`block w-full border px-5 py-3 text-left text-lg transition-colors ${
-						votedFor === pid
-							? 'border-blood-bright bg-blood text-paper'
-							: 'border-wire text-paper hover:border-blood-bright'
-					} disabled:cursor-not-allowed disabled:opacity-50`}
-				>
-					{p.name}
-				</button>
+				{#if punishmentVote}
+					<div class="flex border border-wire">
+						<span class="flex flex-1 items-center px-4 py-2 text-left text-lg text-paper">{p.name}</span>
+						<button
+							onclick={() => castVote(pid, false)}
+							disabled={votedFor !== null}
+							class={`border-l border-wire px-3 py-2 text-xs uppercase transition-colors ${
+								votedFor === pid ? 'bg-amber text-ink font-bold' : 'text-amber hover:bg-amber/10'
+							} disabled:cursor-not-allowed disabled:opacity-50`}
+						>
+							Sospechoso
+						</button>
+						<button
+							onclick={() => castVote(pid, true)}
+							disabled={votedFor !== null}
+							class={`border-l border-wire px-3 py-2 text-xs uppercase transition-colors ${
+								votedFor === pid ? 'bg-blood text-paper font-bold' : 'text-blood-bright hover:bg-blood/10'
+							} disabled:cursor-not-allowed disabled:opacity-50`}
+						>
+							Seguro echar
+						</button>
+					</div>
+				{:else}
+					<button
+						onclick={() => castVote(pid)}
+						disabled={votedFor !== null}
+						class={`block w-full border px-5 py-3 text-left text-lg transition-colors ${
+							votedFor === pid
+								? 'border-blood-bright bg-blood text-paper'
+								: 'border-wire text-paper hover:border-blood-bright'
+						} disabled:cursor-not-allowed disabled:opacity-50`}
+					>
+						{p.name}
+					</button>
+				{/if}
 			{/if}
 		{/each}
 
