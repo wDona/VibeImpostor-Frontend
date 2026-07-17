@@ -1,0 +1,41 @@
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT,WONK@9..144,300..900,0..100,0..1&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap');
+@import 'tailwindcss';
+
+@theme {
+	--font-display: 'Fraunces', serif;
+	--font-mono: 'IBM Plex Mono', monospace;
+
+	--color-ink: #0d0b09;
+	--color-ink-raised: #17130f;
+	--color-paper: #f3ead9;
+	--color-paper-dim: #cabca3;
+	--color-amber: #e0a336;
+	--color-amber-dim: #8a6423;
+	--color-blood: #b3372c;
+	--color-blood-bright: #e0483a;
+	--color-wire: #3a352c;
+}
+
+html {
+	color-scheme: dark;
+}
+
+body {
+	background-color: var(--color-ink);
+	color: var(--color-paper);
+	font-family: var(--font-mono);
+	background-image:
+		radial-gradient(circle at 15% 10%, rgba(224, 163, 54, 0.08), transparent 40%),
+		radial-gradient(circle at 85% 90%, rgba(179, 55, 44, 0.1), transparent 45%);
+	min-height: 100vh;
+}
+
+::selection {
+	background: var(--color-blood);
+	color: var(--color-paper);
+}
+
+.font-display {
+	font-family: var(--font-display);
+	font-optical-sizing: auto;
+}
