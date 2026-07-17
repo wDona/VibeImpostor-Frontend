@@ -14,7 +14,7 @@
 	const impostorLocked = $derived(config.winOnFirstEjection || config.singleWordRound || config.hiddenImpostor);
 
 	function updateConfig(patch: Partial<RoomConfig>) {
-		gameStore.send({ type: 'UpdateConfig', config: { ...config, ...patch } });
+		gameStore.updateConfig({ ...config, ...patch });
 	}
 
 	function startGame() {

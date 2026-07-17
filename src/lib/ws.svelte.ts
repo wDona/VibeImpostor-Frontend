@@ -93,6 +93,13 @@ class GameStore {
 		}
 	}
 
+	// Actualiza la config local al instante (el RoomUpdated del server llega después
+	// y confirma/sobreescribe) — evita que cada click espere el viaje de ida y vuelta.
+	updateConfig(config: RoomConfig) {
+		if (this.room) this.room = { ...this.room, config };
+		this.send({ type: 'UpdateConfig', config });
+	}
+
 	reset() {
 		this.yourPlayerId = null;
 		this.room = null;
