@@ -297,45 +297,52 @@
 			</div>
 
 			<div>
-				<span class="mb-2 block text-xs tracking-[0.3em] text-amber uppercase">Máx. impostores</span>
-				<div class="flex items-center gap-3">
-					<button
-						type="button"
-						onclick={() => setNumImpostors(-1)}
-						disabled={impostorLocked || config.numImpostors <= Math.max(1, config.minImpostors)}
-						class="h-9 w-9 border border-wire text-paper disabled:cursor-not-allowed disabled:opacity-30"
-					>
-						−
-					</button>
-					<span class="w-6 text-center font-display text-xl font-bold text-paper">{config.numImpostors}</span>
-					<button
-						type="button"
-						onclick={() => setNumImpostors(1)}
-						disabled={impostorLocked || config.numImpostors >= maxImpostors}
-						class="h-9 w-9 border border-wire text-paper disabled:cursor-not-allowed disabled:opacity-30"
-					>
-						+
-					</button>
-				</div>
-				<div class="mt-3 flex items-center gap-3">
-					<span class="text-xs text-paper-dim">Mín.</span>
-					<button
-						type="button"
-						onclick={() => setMinImpostors(-1)}
-						disabled={impostorLocked || config.minImpostors <= 0}
-						class="h-7 w-7 border border-wire text-paper disabled:cursor-not-allowed disabled:opacity-30"
-					>
-						−
-					</button>
-					<span class="w-6 text-center font-display text-base font-bold text-paper">{config.minImpostors}</span>
-					<button
-						type="button"
-						onclick={() => setMinImpostors(1)}
-						disabled={impostorLocked || config.minImpostors >= config.numImpostors}
-						class="h-7 w-7 border border-wire text-paper disabled:cursor-not-allowed disabled:opacity-30"
-					>
-						+
-					</button>
+				<span class="mb-2 block text-xs tracking-[0.3em] text-amber uppercase">Num impostores</span>
+				<div class="flex gap-6">
+					<div>
+						<span class="block text-center text-[0.65rem] text-paper-dim uppercase">Min</span>
+						<div class="flex items-center gap-2">
+							<button
+								type="button"
+								onclick={() => setMinImpostors(-1)}
+								disabled={impostorLocked || config.minImpostors <= 0}
+								class="h-9 w-9 border border-wire text-paper disabled:cursor-not-allowed disabled:opacity-30"
+							>
+								−
+							</button>
+							<span class="w-6 text-center font-display text-xl font-bold text-paper">{config.minImpostors}</span>
+							<button
+								type="button"
+								onclick={() => setMinImpostors(1)}
+								disabled={impostorLocked || config.minImpostors >= config.numImpostors}
+								class="h-9 w-9 border border-wire text-paper disabled:cursor-not-allowed disabled:opacity-30"
+							>
+								+
+							</button>
+						</div>
+					</div>
+					<div>
+						<span class="block text-center text-[0.65rem] text-paper-dim uppercase">Max</span>
+						<div class="flex items-center gap-2">
+							<button
+								type="button"
+								onclick={() => setNumImpostors(-1)}
+								disabled={impostorLocked || config.numImpostors <= Math.max(1, config.minImpostors)}
+								class="h-9 w-9 border border-wire text-paper disabled:cursor-not-allowed disabled:opacity-30"
+							>
+								−
+							</button>
+							<span class="w-6 text-center font-display text-xl font-bold text-paper">{config.numImpostors}</span>
+							<button
+								type="button"
+								onclick={() => setNumImpostors(1)}
+								disabled={impostorLocked || config.numImpostors >= maxImpostors}
+								class="h-9 w-9 border border-wire text-paper disabled:cursor-not-allowed disabled:opacity-30"
+							>
+								+
+							</button>
+						</div>
+					</div>
 				</div>
 				{#if config.minImpostors === 0 && config.numImpostors >= 2}
 					<p class="mt-1.5 text-[0.65rem] text-paper-dim italic">Hay ~5% de probabilidad de que no haya impostores</p>
