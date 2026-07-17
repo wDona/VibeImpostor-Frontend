@@ -48,8 +48,10 @@ export interface CategoryResponse {
 	language: string;
 }
 
-export function listCategories() {
-	return request<{ categories: CategoryResponse[] }>('/packs/categories');
+export async function listCategories() {
+	const res = await request<{ categories: CategoryResponse[] }>('/packs/categories');
+	// kotlinx omite "language" del wire cuando vale su default ("es")
+	return { categories: res.categories.map((c) => ({ ...c, language: c.language ?? 'es' })) };
 }
 
 export interface PackDto {
@@ -58,8 +60,9 @@ export interface PackDto {
 	language: string;
 }
 
-export function listMyPacks() {
-	return request<{ packs: PackDto[] }>('/packs/my-packs');
+export async function listMyPacks() {
+	const res = await request<{ packs: PackDto[] }>('/packs/my-packs');
+	return { packs: res.packs.map((p) => ({ ...p, language: p.language ?? 'es' })) };
 }
 
 export function importPack(json: string) {
