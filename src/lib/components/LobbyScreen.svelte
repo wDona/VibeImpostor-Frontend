@@ -55,22 +55,36 @@
 	});
 
 	const filteredCategories = $derived(categories.filter((c) => c.language === config.language));
+	// selectedCategoryIds vacío significa "todos los temas por defecto" en el server.
+	// Para poder quitar solo un par de ellos, la UI trata ese estado como "todo
+	// marcado" y calcula el complemento al desmarcar, en vez de partir de cero.
+	const allCategoryIds = $derived(categories.map((c) => c.id));
+	const effectiveSelected = $derived(config.selectedCategoryIds.length === 0 ? allCategoryIds : config.selectedCategoryIds);
 	const allCategoriesSelected = $derived(
-		filteredCategories.length > 0 && filteredCategories.every((c) => config.selectedCategoryIds.includes(c.id))
+		filteredCategories.length > 0 && filteredCategories.every((c) => effectiveSelected.includes(c.id))
 	);
 
+	function collapseIfAll(ids: number[]) {
+		return ids.length === allCategoryIds.length && allCategoryIds.every((id) => ids.includes(id)) ? [] : ids;
+	}
+
+	function isCategoryChecked(id: number) {
+		return effectiveSelected.includes(id);
+	}
+
 	function toggleCategory(id: number) {
-		const selected = config.selectedCategoryIds;
-		const next = selected.includes(id) ? selected.filter((c) => c !== id) : [...selected, id];
-		updateConfig({ selectedCategoryIds: next });
+		const next = effectiveSelected.includes(id)
+			? effectiveSelected.filter((c) => c !== id)
+			: [...effectiveSelected, id];
+		updateConfig({ selectedCategoryIds: collapseIfAll(next) });
 	}
 
 	function toggleAllCategories() {
 		const filteredIds = filteredCategories.map((c) => c.id);
 		const next = allCategoriesSelected
-			? config.selectedCategoryIds.filter((id) => !filteredIds.includes(id))
-			: [...new Set([...config.selectedCategoryIds, ...filteredIds])];
-		updateConfig({ selectedCategoryIds: next });
+			? effectiveSelected.filter((id) => !filteredIds.includes(id))
+			: [...new Set([...effectiveSelected, ...filteredIds])];
+		updateConfig({ selectedCategoryIds: collapseIfAll(next) });
 	}
 
 	function setNumImpostors(delta: number) {
@@ -95,7 +109,7 @@
 			key: 'hiddenRole',
 			icon: '🎭',
 			label: 'Rol oculto',
-			desc: 'Nadie sabe quién es el impostor hasta el final de la ronda'
+			desc: 'Nadie sabe quién es el impostor hasta el final de la partida'
 		},
 		{
 			key: 'progressiveHints',
@@ -109,7 +123,12 @@
 			label: 'Impostor oculto',
 			desc: 'El impostor no sabe que lo es: recibe una palabra parecida (una pista) y cree que es inocente'
 		},
-		{ key: 'random', icon: '🎲', label: 'Aleatorio', desc: 'Se elige una variante al azar al empezar cada partida' }
+		{
+			key: 'random',
+			icon: '🎲',
+			label: 'Aleatorio',
+			desc: 'Se elige una variante al azar al empezar cada partida — excluye "Gana en primera expulsión" y "Una sola ronda", y siempre fuerza 1 impostor'
+		}
 	];
 
 	const activeSpecialMode = $derived<SpecialModeKey>(
@@ -475,7 +494,7 @@
 							<label class="flex cursor-pointer items-center gap-2 border border-wire px-3 py-2">
 								<input
 									type="checkbox"
-									checked={config.selectedCategoryIds.includes(cat.id)}
+									checked={isCategoryChecked(cat.id)}
 									onchange={() => toggleCategory(cat.id)}
 									class="h-4 w-4 accent-amber"
 								/>
