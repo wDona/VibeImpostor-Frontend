@@ -14,6 +14,10 @@
 	const maxImpostors = $derived(room.players.length);
 	const impostorLocked = $derived(config.winOnFirstEjection || config.singleWordRound || config.hiddenImpostor);
 
+	let codeHidden = $state(false);
+	let showCategoryDialog = $state(false);
+	let justCopied = $state(false);
+
 	function updateConfig(patch: Partial<RoomConfig>) {
 		gameStore.updateConfig({ ...config, ...patch });
 	}
@@ -33,6 +37,8 @@
 	async function copyCode() {
 		try {
 			await navigator.clipboard.writeText(room.code);
+			justCopied = true;
+			setTimeout(() => (justCopied = false), 1500);
 		} catch {
 			/* clipboard unavailable */
 		}
@@ -137,13 +143,27 @@
 	<header class="mb-8 flex items-start justify-between gap-4">
 		<div>
 			<p class="text-xs tracking-[0.3em] text-amber-dim uppercase">Sala de espera</p>
-			<button
-				onclick={copyCode}
-				class="font-display text-5xl font-black tracking-[0.15em] text-paper italic transition-opacity hover:opacity-70"
-				title="Copiar código"
-			>
-				{room.code}
-			</button>
+			<div class="flex items-center gap-3">
+				<span class="font-display text-5xl font-black tracking-[0.15em] text-paper italic">
+					{codeHidden ? '••••••' : room.code}
+				</span>
+				<div class="flex flex-col gap-1">
+					<button
+						onclick={copyCode}
+						title="Copiar código"
+						class="border border-wire px-2 py-0.5 text-[0.6rem] tracking-widest text-paper-dim uppercase hover:border-amber hover:text-amber"
+					>
+						{justCopied ? 'copiado' : 'copiar'}
+					</button>
+					<button
+						onclick={() => (codeHidden = !codeHidden)}
+						title={codeHidden ? 'Mostrar código' : 'Ocultar código'}
+						class="border border-wire px-2 py-0.5 text-[0.6rem] tracking-widest text-paper-dim uppercase hover:border-amber hover:text-amber"
+					>
+						{codeHidden ? 'mostrar' : 'ocultar'}
+					</button>
+				</div>
+			</div>
 		</div>
 		<button
 			onclick={leave}
@@ -292,34 +312,18 @@
 			</div>
 		</section>
 
-		{#if filteredCategories.length}
-			<section class="mb-6 border border-wire bg-ink-raised/50 p-5">
-				<div class="mb-3 flex items-center justify-between">
-					<span class="text-xs tracking-[0.3em] text-amber uppercase">
-						Temas de palabras — {config.selectedCategoryIds.length === 0 ? 'todos' : config.selectedCategoryIds.length}
-					</span>
-					<button type="button" onclick={toggleAllCategories} class="text-[0.65rem] tracking-widest text-paper-dim uppercase hover:text-amber">
-						{allCategoriesSelected ? 'Deseleccionar todo' : 'Seleccionar todos'}
-					</button>
-				</div>
-				<p class="mb-3 text-xs text-paper-dim italic">Si no eliges ninguno, se usan todos los temas base</p>
-				<div class="flex flex-wrap gap-2">
-					{#each filteredCategories as cat (cat.id)}
-						<button
-							type="button"
-							onclick={() => toggleCategory(cat.id)}
-							class={`border px-3 py-1 text-xs uppercase ${
-								config.selectedCategoryIds.includes(cat.id)
-									? 'border-amber bg-amber text-ink font-bold'
-									: 'border-wire text-paper-dim hover:border-amber-dim'
-							}`}
-						>
-							{cat.name}
-						</button>
-					{/each}
-				</div>
-			</section>
-		{/if}
+		<section class="mb-6 border border-wire bg-ink-raised/50 p-5">
+			<button
+				type="button"
+				onclick={() => (showCategoryDialog = true)}
+				class="flex w-full items-center justify-between text-left"
+			>
+				<span class="text-xs tracking-[0.3em] text-amber uppercase">Temas de palabras</span>
+				<span class="text-sm text-paper-dim">
+					{config.selectedCategoryIds.length === 0 ? 'todos' : config.selectedCategoryIds.length} →
+				</span>
+			</button>
+		</section>
 
 		<section class="mb-6 space-y-1 border border-wire bg-ink-raised/50 p-5">
 			{#if !config.progressiveHints}
@@ -384,6 +388,85 @@
 			{canStart ? 'Comenzar partida' : `Se necesitan ${neededMore} jugadores más`}
 		</button>
 	{:else}
+		{@const activeMode = SPECIAL_MODES.find((m) => m.key === activeSpecialMode)!}
+		<section class="mb-6 space-y-2 border border-wire bg-ink-raised/50 p-5 text-sm">
+			<h2 class="mb-3 text-xs tracking-[0.3em] text-amber uppercase">Configuración de la sala</h2>
+			<p class="text-paper-dim">Modo de juego: <span class="text-paper">{config.gameMode === 'VOICE' ? 'Voz' : 'Texto'}</span></p>
+			<p class="text-paper-dim">Impostores: <span class="text-paper">{config.numImpostors === 1 ? '1' : `0-${config.numImpostors}`}</span></p>
+			<p class="text-paper-dim">Tiempo de voto: <span class="text-paper">{config.voteTimeLimitSeconds}s</span></p>
+			<p class="text-paper-dim">Idioma de las palabras: <span class="text-paper">{config.language === 'en' ? 'English' : 'Español'}</span></p>
+			<p class="text-paper-dim">
+				Temas de palabras: <span class="text-paper">{config.selectedCategoryIds.length === 0 ? 'todos' : config.selectedCategoryIds.length}</span>
+			</p>
+			<div>
+				<p class="text-paper-dim">Variante de juego: <span class="text-paper">{activeMode.label}</span></p>
+				{#if activeMode.key !== 'normal' && activeMode.key !== 'random'}
+					<p class="mt-0.5 text-xs text-paper-dim/70">{activeMode.desc}</p>
+				{/if}
+			</div>
+			<p class="text-paper-dim">
+				Gana en primera expulsión: <span class="text-paper">{config.winOnFirstEjection ? 'Activado' : 'Desactivado'}</span>
+			</p>
+			<p class="text-paper-dim">Votos anónimos: <span class="text-paper">{config.anonymousVotes ? 'Activado' : 'Desactivado'}</span></p>
+			<p class="text-paper-dim">Una sola ronda: <span class="text-paper">{config.singleWordRound ? 'Activado' : 'Desactivado'}</span></p>
+			<p class="text-paper-dim">Voto de sospechoso: <span class="text-paper">{config.punishmentVote ? 'Activado' : 'Desactivado'}</span></p>
+			<p class="pt-2 font-bold text-paper-dim">Solo el host puede cambiar los ajustes</p>
+		</section>
 		<p class="text-center text-sm text-paper-dim italic">Esperando a que el host inicie la partida...</p>
+	{/if}
+
+	{#if showCategoryDialog}
+		<div
+			role="presentation"
+			class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4"
+			onclick={() => (showCategoryDialog = false)}
+			onkeydown={(e) => e.key === 'Escape' && (showCategoryDialog = false)}
+		>
+			<div
+				role="dialog"
+				aria-modal="true"
+				aria-label="Temas de palabras"
+				tabindex="-1"
+				class="max-h-[80vh] w-full max-w-md overflow-y-auto border border-wire bg-ink p-6"
+				onclick={(e) => e.stopPropagation()}
+				onkeydown={(e) => e.stopPropagation()}
+			>
+				<div class="mb-4 flex items-center justify-between">
+					<h3 class="font-display text-xl font-bold text-paper italic">Temas de palabras</h3>
+					<button onclick={() => (showCategoryDialog = false)} class="text-paper-dim hover:text-paper">✕</button>
+				</div>
+				<p class="mb-3 text-xs text-paper-dim italic">Si no eliges ninguno, se usan todos los temas base</p>
+				{#if filteredCategories.length}
+					<button
+						type="button"
+						onclick={toggleAllCategories}
+						class="mb-3 w-full border border-amber-dim py-2 text-xs text-amber uppercase hover:bg-amber/10"
+					>
+						{allCategoriesSelected ? 'Deseleccionar todo' : 'Seleccionar todos'}
+					</button>
+					<div class="space-y-1.5">
+						{#each filteredCategories as cat (cat.id)}
+							<label class="flex cursor-pointer items-center gap-2 border border-wire px-3 py-2">
+								<input
+									type="checkbox"
+									checked={config.selectedCategoryIds.includes(cat.id)}
+									onchange={() => toggleCategory(cat.id)}
+									class="h-4 w-4 accent-amber"
+								/>
+								<span class="text-sm text-paper">{cat.name}</span>
+							</label>
+						{/each}
+					</div>
+				{:else}
+					<p class="text-sm text-paper-dim italic">No hay temas disponibles en este idioma todavía.</p>
+				{/if}
+				<button
+					onclick={() => (showCategoryDialog = false)}
+					class="mt-4 w-full bg-amber py-2.5 text-xs font-bold text-ink uppercase hover:bg-amber-dim"
+				>
+					Listo
+				</button>
+			</div>
+		</div>
 	{/if}
 </div>
