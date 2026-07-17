@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { gameStore } from '$lib/ws.svelte';
+	import PlayerAvatar from './PlayerAvatar.svelte';
 
 	const room = $derived(gameStore.room!);
 	const isMyTurn = $derived(room.currentTurnPlayerId === gameStore.yourPlayerId);
@@ -69,12 +70,13 @@
 				{@const p = room.players.find((pl) => pl.id === pid)}
 				{#if p}
 					<span
-						class={`border px-3 py-1.5 text-sm ${
+						class={`flex items-center gap-1.5 border px-2.5 py-1.5 text-sm ${
 							pid === room.currentTurnPlayerId
 								? 'border-amber bg-amber text-ink font-bold'
 								: 'border-wire text-paper-dim'
 						} ${!p.connected ? 'opacity-40' : ''}`}
 					>
+						<PlayerAvatar name={p.name} colorIndex={p.colorIndex} size="sm" />
 						{p.name}
 					</span>
 				{/if}

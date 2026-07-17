@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { gameStore } from '$lib/ws.svelte';
+	import PlayerAvatar from './PlayerAvatar.svelte';
 
 	const room = $derived(gameStore.room!);
 	const winners = $derived(room.lastWinners.map((id) => room.players.find((p) => p.id === id)).filter(Boolean));
@@ -29,7 +30,8 @@
 
 	<div class="mt-8 space-y-1">
 		{#each room.players as p (p.id)}
-			<p class="text-sm text-paper-dim">
+			<p class="flex items-center justify-center gap-2 text-sm text-paper-dim">
+				<PlayerAvatar name={p.name} colorIndex={p.colorIndex} size="sm" />
 				{p.name} — <span class="text-paper">{p.score} pts</span>
 			</p>
 		{/each}

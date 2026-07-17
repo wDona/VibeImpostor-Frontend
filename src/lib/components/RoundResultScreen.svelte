@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { gameStore } from '$lib/ws.svelte';
 	import { BOTH_IMPOSTORS_ID, NOBODY_VOTE_ID, PUNISHMENT_PREFIX } from '$lib/protocol';
+	import PlayerAvatar from './PlayerAvatar.svelte';
 
 	const room = $derived(gameStore.room!);
 	const result = $derived(gameStore.votingResult!);
@@ -52,7 +53,10 @@
 			{#each Object.entries(result.votes) as [voterId, targetId] (voterId)}
 				{@const voter = room.players.find((p) => p.id === voterId)}
 				{@const target = room.players.find((p) => p.id === targetId)}
-				<p>{voter?.name ?? '?'} → {target?.name ?? (targetId === NOBODY_VOTE_ID ? 'nadie' : '?')}</p>
+				<p class="flex items-center justify-center gap-1.5">
+					{#if voter}<PlayerAvatar name={voter.name} colorIndex={voter.colorIndex} size="sm" />{/if}
+					{voter?.name ?? '?'} → {target?.name ?? (targetId === NOBODY_VOTE_ID ? 'nadie' : '?')}
+				</p>
 			{/each}
 		</div>
 	{/if}

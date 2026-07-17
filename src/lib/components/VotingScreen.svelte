@@ -2,6 +2,7 @@
 	import { gameStore } from '$lib/ws.svelte';
 	import { BOTH_IMPOSTORS_ID, NOBODY_VOTE_ID } from '$lib/protocol';
 	import Countdown from './Countdown.svelte';
+	import PlayerAvatar from './PlayerAvatar.svelte';
 
 	const room = $derived(gameStore.room!);
 	const voting = $derived(gameStore.voting!);
@@ -31,7 +32,10 @@
 			{#if p}
 				{#if punishmentVote}
 					<div class="flex border border-wire">
-						<span class="flex flex-1 items-center px-4 py-2 text-left text-lg text-paper">{p.name}</span>
+						<span class="flex flex-1 items-center gap-2.5 px-4 py-2 text-left text-lg text-paper">
+							<PlayerAvatar name={p.name} colorIndex={p.colorIndex} />
+							{p.name}
+						</span>
 						<button
 							onclick={() => castVote(pid, false)}
 							disabled={votedFor !== null}
@@ -61,7 +65,10 @@
 								: 'border-wire text-paper hover:border-blood-bright'
 						} disabled:cursor-not-allowed disabled:opacity-50`}
 					>
-						{p.name}
+						<span class="inline-flex items-center gap-2.5">
+							<PlayerAvatar name={p.name} colorIndex={p.colorIndex} />
+							{p.name}
+						</span>
 					</button>
 				{/if}
 			{/if}

@@ -3,6 +3,7 @@
 	import { gameStore } from '$lib/ws.svelte';
 	import * as api from '$lib/api';
 	import { MIN_PLAYERS, type RoomConfig } from '$lib/protocol';
+	import PlayerAvatar from './PlayerAvatar.svelte';
 
 	const room = $derived(gameStore.room!);
 	const config = $derived(room.config);
@@ -158,11 +159,9 @@
 		</h2>
 		<ul class="space-y-1.5">
 			{#each room.players as p (p.id)}
-				<li
-					class="flex items-center justify-between border-l-2 border-wire bg-ink-raised/60 px-4 py-2.5"
-					style={`border-left-color: hsl(${(p.colorIndex * 47) % 360} 60% 45%)`}
-				>
-					<span class="flex items-center gap-2">
+				<li class="flex items-center justify-between border-l-2 border-wire bg-ink-raised/60 px-4 py-2.5">
+					<span class="flex items-center gap-2.5">
+						<PlayerAvatar name={p.name} colorIndex={p.colorIndex} />
 						<span class="font-medium text-paper">{p.name}</span>
 						{#if p.isHost}
 							<span class="text-[0.6rem] tracking-widest text-amber uppercase">host</span>

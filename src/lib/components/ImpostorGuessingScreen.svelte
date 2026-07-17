@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { gameStore } from '$lib/ws.svelte';
+	import PlayerAvatar from './PlayerAvatar.svelte';
 
 	const room = $derived(gameStore.room!);
 	const isGuessing = $derived(room.pendingGuessImpostorId === gameStore.yourPlayerId);
@@ -38,6 +39,7 @@
 		{/if}
 	{:else}
 		<h1 class="font-display mb-3 text-3xl font-black text-paper italic">
+			{#if guesser}<PlayerAvatar name={guesser.name} colorIndex={guesser.colorIndex} size="sm" />{/if}
 			{guesser?.name ?? 'El impostor'} está adivinando la palabra
 		</h1>
 		<p class="text-sm text-paper-dim italic">Si acierta, gana la partida...</p>
