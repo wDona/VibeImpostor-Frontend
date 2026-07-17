@@ -97,8 +97,15 @@
 	function setNumImpostors(delta: number) {
 		if (impostorLocked) return;
 		const next = config.numImpostors + delta;
-		if (next < 1 || next > maxImpostors) return;
+		if (next < Math.max(1, config.minImpostors) || next > maxImpostors) return;
 		updateConfig({ numImpostors: next });
+	}
+
+	function setMinImpostors(delta: number) {
+		if (impostorLocked) return;
+		const next = config.minImpostors + delta;
+		if (next < 0 || next > config.numImpostors) return;
+		updateConfig({ minImpostors: next });
 	}
 
 	function setVoteTime(delta: number) {
@@ -161,6 +168,7 @@
 			progressiveHints: key === 'progressiveHints',
 			hiddenImpostor: key === 'hiddenImpostor',
 			numImpostors: key === 'hiddenImpostor' || key === 'random' ? 1 : config.numImpostors,
+			minImpostors: key === 'hiddenImpostor' || key === 'random' ? 1 : config.minImpostors,
 			winOnFirstEjection: key === 'progressiveHints' || key === 'random' ? false : config.winOnFirstEjection,
 			singleWordRound: key === 'progressiveHints' || key === 'random' ? false : config.singleWordRound
 		});
@@ -168,12 +176,12 @@
 
 	function toggleWinOnFirstEjection() {
 		const next = !config.winOnFirstEjection;
-		updateConfig(next ? { winOnFirstEjection: true, numImpostors: 1 } : { winOnFirstEjection: false });
+		updateConfig(next ? { winOnFirstEjection: true, numImpostors: 1, minImpostors: 1 } : { winOnFirstEjection: false });
 	}
 
 	function toggleSingleWordRound() {
 		const next = !config.singleWordRound;
-		updateConfig(next ? { singleWordRound: true, numImpostors: 1 } : { singleWordRound: false });
+		updateConfig(next ? { singleWordRound: true, numImpostors: 1, minImpostors: 1 } : { singleWordRound: false });
 	}
 </script>
 
@@ -294,7 +302,7 @@
 					<button
 						type="button"
 						onclick={() => setNumImpostors(-1)}
-						disabled={impostorLocked || config.numImpostors <= 1}
+						disabled={impostorLocked || config.numImpostors <= Math.max(1, config.minImpostors)}
 						class="h-9 w-9 border border-wire text-paper disabled:cursor-not-allowed disabled:opacity-30"
 					>
 						−
@@ -309,7 +317,27 @@
 						+
 					</button>
 				</div>
-				{#if config.numImpostors >= 2}
+				<div class="mt-3 flex items-center gap-3">
+					<span class="text-xs text-paper-dim">Mín.</span>
+					<button
+						type="button"
+						onclick={() => setMinImpostors(-1)}
+						disabled={impostorLocked || config.minImpostors <= 0}
+						class="h-7 w-7 border border-wire text-paper disabled:cursor-not-allowed disabled:opacity-30"
+					>
+						−
+					</button>
+					<span class="w-6 text-center font-display text-base font-bold text-paper">{config.minImpostors}</span>
+					<button
+						type="button"
+						onclick={() => setMinImpostors(1)}
+						disabled={impostorLocked || config.minImpostors >= config.numImpostors}
+						class="h-7 w-7 border border-wire text-paper disabled:cursor-not-allowed disabled:opacity-30"
+					>
+						+
+					</button>
+				</div>
+				{#if config.minImpostors === 0 && config.numImpostors >= 2}
 					<p class="mt-1.5 text-[0.65rem] text-paper-dim italic">Hay ~5% de probabilidad de que no haya impostores</p>
 				{/if}
 			</div>
@@ -452,7 +480,7 @@
 		<section class="mb-6 space-y-2 border border-wire bg-ink-raised/50 p-5 text-sm">
 			<h2 class="mb-3 text-xs tracking-[0.3em] text-amber uppercase">Configuración de la sala</h2>
 			<p class="text-paper-dim">Modo de juego: <span class="text-paper">{config.gameMode === 'VOICE' ? 'Voz' : 'Texto'}</span></p>
-			<p class="text-paper-dim">Impostores: <span class="text-paper">{config.numImpostors === 1 ? '1' : `0-${config.numImpostors}`}</span></p>
+			<p class="text-paper-dim">Impostores: <span class="text-paper">{config.numImpostors === 1 ? '1' : `${config.minImpostors}-${config.numImpostors}`}</span></p>
 			<p class="text-paper-dim">Tiempo de voto: <span class="text-paper">{config.voteTimeLimitSeconds}s</span></p>
 			<p class="text-paper-dim">Idioma de las palabras: <span class="text-paper">{config.language === 'en' ? 'English' : 'Español'}</span></p>
 			<p class="text-paper-dim">

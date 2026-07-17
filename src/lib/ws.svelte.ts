@@ -107,6 +107,7 @@ class GameStore {
 
 	error = $state<string | null>(null);
 	removedReason = $state<string | null>(null);
+	private updateConfigTimer: ReturnType<typeof setTimeout> | null = null;
 
 	connect() {
 		if (this.socket && this.socket.readyState <= WebSocket.OPEN) return;
@@ -139,7 +140,14 @@ class GameStore {
 	// y confirma/sobreescribe) — evita que cada click espere el viaje de ida y vuelta.
 	updateConfig(config: RoomConfig) {
 		if (this.room) this.room = { ...this.room, config };
-		this.send({ type: 'UpdateConfig', config });
+		if (this.updateConfigTimer) clearTimeout(this.updateConfigTimer);
+		// Debounce the actual send — clicking +/- repeatedly would otherwise fire one
+		// UpdateConfig per click, and each RoomUpdated echo can race/overwrite later
+		// optimistic local state, causing a visible flicker back to a stale value.
+		this.updateConfigTimer = setTimeout(() => {
+			this.updateConfigTimer = null;
+			this.send({ type: 'UpdateConfig', config });
+		}, 300);
 	}
 
 	// El server cierra el socket al recibir LeaveRoom sin mandar confirmación,

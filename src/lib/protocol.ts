@@ -37,6 +37,7 @@ export interface PublicPlayer {
 export interface RoomConfig {
 	gameMode: GameMode;
 	numImpostors: number;
+	minImpostors: number;
 	impostorMode: ImpostorMode;
 	allCanBeImpostor: boolean;
 	voteTimeLimitSeconds: number;
@@ -57,6 +58,7 @@ export function defaultRoomConfig(): RoomConfig {
 	return {
 		gameMode: 'VOICE',
 		numImpostors: 1,
+		minImpostors: 1,
 		impostorMode: 'FIXED',
 		allCanBeImpostor: false,
 		voteTimeLimitSeconds: 60,
