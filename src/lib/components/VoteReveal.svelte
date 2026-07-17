@@ -6,12 +6,10 @@
 	let {
 		players,
 		votes,
-		voteTypes,
 		anonymousVotes
 	}: {
 		players: PublicPlayer[];
 		votes: Record<string, string>;
-		voteTypes: Record<string, boolean>;
 		anonymousVotes: boolean;
 	} = $props();
 
@@ -33,15 +31,16 @@
 		}
 		return [...byTarget.entries()].sort((a, b) => b[1].length - a[1].length);
 	});
-
-	const hasVoteTypes = $derived(Object.keys(voteTypes).length > 0);
 </script>
 
 {#if groups.length}
 	<div class="w-full space-y-2 text-left">
 		{#each groups as [targetId, voterIds] (targetId)}
 			<div class="border border-wire bg-ink-raised/50 px-4 py-2.5">
-				<p class="text-sm text-paper">
+				<p class="flex items-center gap-1.5 text-sm text-paper">
+					{#if player(targetId)}
+						<PlayerAvatar name={player(targetId)!.name} colorIndex={player(targetId)!.colorIndex} size="sm" />
+					{/if}
 					<span class="font-medium">{playerName(targetId)}</span>
 					<span class="text-paper-dim"> — {voterIds.length} voto{voterIds.length === 1 ? '' : 's'}</span>
 				</p>
@@ -53,11 +52,6 @@
 								<span class="flex items-center gap-1 text-xs text-paper-dim">
 									<PlayerAvatar name={voter.name} colorIndex={voter.colorIndex} size="sm" />
 									{voter.name}
-									{#if hasVoteTypes}
-										<span title={voteTypes[voterId] ? 'Voto duro' : 'Sospechoso'}>
-											{voteTypes[voterId] ? '🔴' : '🟡'}
-										</span>
-									{/if}
 								</span>
 							{/if}
 						{/each}

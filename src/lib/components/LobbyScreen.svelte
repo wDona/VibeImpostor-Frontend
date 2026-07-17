@@ -114,17 +114,11 @@
 		updateConfig({ voteTimeLimitSeconds: next });
 	}
 
-	type SpecialModeKey = 'normal' | 'noCategory' | 'hiddenRole' | 'progressiveHints' | 'hiddenImpostor' | 'random';
+	type SpecialModeKey = 'normal' | 'noCategory' | 'progressiveHints' | 'hiddenImpostor' | 'random';
 
 	const SPECIAL_MODES: { key: SpecialModeKey; icon: string; label: string; desc: string }[] = [
 		{ key: 'normal', icon: '⚪', label: 'Normal', desc: 'Modo estándar sin variantes' },
 		{ key: 'noCategory', icon: '🚫', label: 'Sin categoría', desc: 'El impostor no recibe categoría ni pistas' },
-		{
-			key: 'hiddenRole',
-			icon: '🎭',
-			label: 'Rol oculto',
-			desc: 'Nadie sabe quién es el impostor hasta el final de la partida'
-		},
 		{
 			key: 'progressiveHints',
 			icon: '💡',
@@ -152,8 +146,6 @@
 				? 'hiddenImpostor'
 				: config.progressiveHints
 					? 'progressiveHints'
-					: config.hiddenRole
-						? 'hiddenRole'
 						: config.noCategory
 							? 'noCategory'
 							: 'normal'
@@ -164,7 +156,6 @@
 		updateConfig({
 			randomVariant: key === 'random',
 			noCategory: key === 'noCategory',
-			hiddenRole: key === 'hiddenRole',
 			progressiveHints: key === 'progressiveHints',
 			hiddenImpostor: key === 'hiddenImpostor',
 			numImpostors: key === 'hiddenImpostor' || key === 'random' ? 1 : config.numImpostors,
@@ -421,7 +412,10 @@
 		<section class="mb-6 space-y-1 border border-wire bg-ink-raised/50 p-5">
 			{#if !config.progressiveHints}
 				<label class="flex cursor-pointer items-center justify-between gap-4 py-2">
-					<span class="text-sm text-paper-dim">Gana en primera expulsión</span>
+					<span class="text-sm text-paper-dim">
+						Gana en primera expulsión
+						<span class="block text-xs text-paper-dim/70">Limita el número de impostores a 1 (mín y máx)</span>
+					</span>
 					<input
 						type="checkbox"
 						checked={config.winOnFirstEjection}
@@ -445,7 +439,7 @@
 				<label class="flex cursor-pointer items-center justify-between gap-4 py-2">
 					<span class="text-sm text-paper-dim">
 						Una sola ronda
-						<span class="block text-xs text-paper-dim/70">Solo una ronda en toda la partida, el impostor es expulsado al final</span>
+						<span class="block text-xs text-paper-dim/70">Solo una ronda en toda la partida, el impostor es expulsado al final. Limita el número de impostores a 1 (mín y máx)</span>
 					</span>
 					<input
 						type="checkbox"

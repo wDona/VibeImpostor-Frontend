@@ -75,7 +75,6 @@
 			<VoteReveal
 				players={room.players}
 				votes={result.votes}
-				voteTypes={result.voteTypes}
 				anonymousVotes={room.config.anonymousVotes}
 			/>
 		</div>
@@ -140,17 +139,17 @@
 			<p class="mb-6 text-sm text-paper">Listos: {rematchCount} / {room.players.length}</p>
 			<div class="flex gap-3">
 				<button
-					onclick={() => gameStore.leaveRoom()}
-					class="flex-1 border border-wire py-2.5 text-xs tracking-widest text-paper-dim uppercase hover:text-paper"
-				>
-					Salir
-				</button>
-				<button
 					onclick={requestRematch}
 					disabled={you?.wantsRematch}
 					class="flex-1 bg-amber py-2.5 text-xs font-bold tracking-widest text-ink uppercase hover:bg-amber-dim disabled:cursor-not-allowed disabled:opacity-40"
 				>
 					Unirse
+				</button>
+				<button
+					onclick={() => gameStore.leaveRoom()}
+					class="flex-1 border border-wire py-2.5 text-xs tracking-widest text-paper-dim uppercase hover:text-paper"
+				>
+					Salir
 				</button>
 			</div>
 		</div>

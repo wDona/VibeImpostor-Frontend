@@ -47,7 +47,6 @@ export interface RoomConfig {
 	anonymousVotes: boolean;
 	singleWordRound: boolean;
 	noCategory: boolean;
-	hiddenRole: boolean;
 	progressiveHints: boolean;
 	punishmentVote: boolean;
 	hiddenImpostor: boolean;
@@ -68,7 +67,6 @@ export function defaultRoomConfig(): RoomConfig {
 		anonymousVotes: false,
 		singleWordRound: false,
 		noCategory: false,
-		hiddenRole: false,
 		progressiveHints: false,
 		punishmentVote: false,
 		hiddenImpostor: false,

@@ -90,7 +90,6 @@
 		<VoteReveal
 			players={room.players}
 			votes={result.votes}
-			voteTypes={result.voteTypes}
 			anonymousVotes={room.config.anonymousVotes}
 		/>
 	</div>

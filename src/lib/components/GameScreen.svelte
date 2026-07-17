@@ -9,7 +9,6 @@
 	const isMyTurn = $derived(room.currentTurnPlayerId === gameStore.yourPlayerId);
 	const isImpostor = $derived(gameStore.yourRole === 'IMPOSTOR');
 	const currentPlayer = $derived(room.players.find((p) => p.id === room.currentTurnPlayerId));
-	const hiddenRole = $derived(room.config.hiddenRole);
 	const eliminated = $derived(room.players.filter((p) => p.isSpectator));
 
 	let wordInput = $state('');
@@ -98,18 +97,16 @@
 
 	<section
 		class={`mb-8 border p-6 text-center ${
-			hiddenRole ? 'border-wire bg-ink-raised' : isImpostor ? 'border-blood bg-blood/10' : 'border-wire bg-ink-raised/60'
+			isImpostor ? 'border-blood bg-blood/10' : 'border-wire bg-ink-raised/60'
 		}`}
 	>
-		{#if !hiddenRole}
 			<p
 				class={`mb-2 text-[0.65rem] tracking-[0.35em] uppercase ${isImpostor ? 'text-blood-bright' : 'text-amber'}`}
 			>
 				{isImpostor ? 'Eres el impostor' : 'Eres inocente'}
 			</p>
-		{/if}
 		<p class="font-display text-4xl font-black text-paper italic">{gameStore.content}</p>
-		{#if !hiddenRole && !gameStore.contentIsWord}
+		{#if !gameStore.contentIsWord}
 			<p class="mt-1 text-xs text-paper-dim uppercase">categoría</p>
 		{/if}
 		{#if gameStore.hintList.length}
@@ -189,8 +186,12 @@
 				</button>
 			{/if}
 		{:else}
-			<p class="text-sm text-paper-dim italic">
-				Turno de <span class="text-paper not-italic">{currentPlayer?.name ?? '...'}</span>
+			<p class="flex items-center justify-center gap-2 text-sm text-paper-dim italic">
+				Turno de
+				{#if currentPlayer}
+					<PlayerAvatar name={currentPlayer.name} colorIndex={currentPlayer.colorIndex} size="sm" />
+				{/if}
+				<span class="text-paper not-italic">{currentPlayer?.name ?? '...'}</span>
 			</p>
 		{/if}
 	</section>
