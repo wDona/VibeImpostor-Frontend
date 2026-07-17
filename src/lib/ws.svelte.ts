@@ -108,6 +108,7 @@ class GameStore {
 	error = $state<string | null>(null);
 	removedReason = $state<string | null>(null);
 	private updateConfigTimer: ReturnType<typeof setTimeout> | null = null;
+	private pendingConfig: RoomConfig | null = null;
 
 	connect() {
 		if (this.socket && this.socket.readyState <= WebSocket.OPEN) return;
@@ -127,6 +128,10 @@ class GameStore {
 	}
 
 	send(message: ClientMessage) {
+		// A pending debounced UpdateConfig must land on the server before anything
+		// sent after it (e.g. StartGame) — otherwise the server can act on a stale
+		// config (the previous vote time, impostor count, etc.).
+		if (message.type !== 'UpdateConfig') this.flushConfig();
 		this.connect();
 		const wire = JSON.stringify({ ...message, type: CLIENT_PREFIX + message.type });
 		if (this.socket?.readyState === WebSocket.OPEN) {
@@ -136,17 +141,30 @@ class GameStore {
 		}
 	}
 
+	private flushConfig() {
+		if (this.updateConfigTimer) {
+			clearTimeout(this.updateConfigTimer);
+			this.updateConfigTimer = null;
+		}
+		if (this.pendingConfig) {
+			const config = this.pendingConfig;
+			this.pendingConfig = null;
+			this.send({ type: 'UpdateConfig', config });
+		}
+	}
+
 	// Actualiza la config local al instante (el RoomUpdated del server llega después
 	// y confirma/sobreescribe) — evita que cada click espere el viaje de ida y vuelta.
 	updateConfig(config: RoomConfig) {
 		if (this.room) this.room = { ...this.room, config };
+		this.pendingConfig = config;
 		if (this.updateConfigTimer) clearTimeout(this.updateConfigTimer);
 		// Debounce the actual send — clicking +/- repeatedly would otherwise fire one
 		// UpdateConfig per click, and each RoomUpdated echo can race/overwrite later
 		// optimistic local state, causing a visible flicker back to a stale value.
 		this.updateConfigTimer = setTimeout(() => {
 			this.updateConfigTimer = null;
-			this.send({ type: 'UpdateConfig', config });
+			this.flushConfig();
 		}, 300);
 	}
 

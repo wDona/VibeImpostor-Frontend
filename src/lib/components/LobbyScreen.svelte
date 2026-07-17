@@ -414,7 +414,7 @@
 				<label class="flex cursor-pointer items-center justify-between gap-4 py-2">
 					<span class="text-sm text-paper-dim">
 						Gana en primera expulsión
-						<span class="block text-xs text-paper-dim/70">Limita el número de impostores a 1 (mín y máx)</span>
+						<span class="block text-xs text-paper-dim/70">La partida termina en la primera expulsión (sea quien sea): si cae el impostor, pasa a adivinar la palabra; si cae un inocente, ganan los impostores directamente. Limita el número de impostores a 1 (mín y máx)</span>
 					</span>
 					<input
 						type="checkbox"
@@ -439,7 +439,7 @@
 				<label class="flex cursor-pointer items-center justify-between gap-4 py-2">
 					<span class="text-sm text-paper-dim">
 						Una sola ronda
-						<span class="block text-xs text-paper-dim/70">Solo una ronda en toda la partida, el impostor es expulsado al final. Limita el número de impostores a 1 (mín y máx)</span>
+						<span class="block text-xs text-paper-dim/70">Cada ronda es una palabra por jugador y se pasa a votar directo, sin la fase de "¿queréis votar?". Si no hay expulsión la partida sigue con otra ronda igual. Limita el número de impostores a 1 (mín y máx)</span>
 					</span>
 					<input
 						type="checkbox"

@@ -146,6 +146,12 @@
 					Unirse
 				</button>
 				<button
+					onclick={backToLobby}
+					class="flex-1 border border-wire py-2.5 text-xs tracking-widest text-paper-dim uppercase hover:text-paper"
+				>
+					Lobby
+				</button>
+				<button
 					onclick={() => gameStore.leaveRoom()}
 					class="flex-1 border border-wire py-2.5 text-xs tracking-widest text-paper-dim uppercase hover:text-paper"
 				>
