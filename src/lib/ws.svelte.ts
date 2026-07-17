@@ -1,4 +1,5 @@
 import { WS_URL } from './config';
+import { sound } from './sound';
 import {
 	BOTH_IMPOSTORS_ID,
 	NOBODY_VOTE_ID,
@@ -216,6 +217,7 @@ class GameStore {
 				break;
 			case 'TurnChanged':
 				if (this.room) {
+					if (msg.currentTurnPlayerId === this.yourPlayerId) sound.yourTurn();
 					this.room = { ...this.room, currentTurnPlayerId: msg.currentTurnPlayerId, roundNumber: msg.roundNumber };
 				}
 				this.askVoteDeadline = null;
@@ -226,6 +228,7 @@ class GameStore {
 				break;
 			case 'AskWantVote':
 				this.screen = 'ASK_VOTE';
+				sound.voteStarted();
 				this.askVoteDeadline = msg.deadlineEpochMs;
 				break;
 			case 'VotingStarted':
@@ -269,6 +272,7 @@ class GameStore {
 			case 'RematchStarted':
 				this.room = normalizeRoom(msg.room);
 				this.screen = 'RESULT';
+				sound.rematch();
 				break;
 			case 'ReturnedToLobby':
 				this.room = normalizeRoom(msg.room);

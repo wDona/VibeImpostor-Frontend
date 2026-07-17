@@ -88,17 +88,28 @@
 
 	type SpecialModeKey = 'normal' | 'noCategory' | 'hiddenRole' | 'progressiveHints' | 'hiddenImpostor' | 'random';
 
-	const SPECIAL_MODES: { key: SpecialModeKey; label: string; desc: string }[] = [
-		{ key: 'normal', label: 'Normal', desc: 'Modo estándar sin variantes' },
-		{ key: 'noCategory', label: 'Sin categoría', desc: 'El impostor no recibe categoría ni pistas' },
-		{ key: 'hiddenRole', label: 'Rol oculto', desc: 'Nadie sabe quién es el impostor hasta el final de la ronda' },
-		{ key: 'progressiveHints', label: 'Pistas progresivas', desc: 'El impostor recibe una pista nueva cada ronda' },
+	const SPECIAL_MODES: { key: SpecialModeKey; icon: string; label: string; desc: string }[] = [
+		{ key: 'normal', icon: '⚪', label: 'Normal', desc: 'Modo estándar sin variantes' },
+		{ key: 'noCategory', icon: '🚫', label: 'Sin categoría', desc: 'El impostor no recibe categoría ni pistas' },
+		{
+			key: 'hiddenRole',
+			icon: '🎭',
+			label: 'Rol oculto',
+			desc: 'Nadie sabe quién es el impostor hasta el final de la ronda'
+		},
+		{
+			key: 'progressiveHints',
+			icon: '💡',
+			label: 'Pistas progresivas',
+			desc: 'El impostor recibe una pista nueva cada ronda'
+		},
 		{
 			key: 'hiddenImpostor',
+			icon: '🫥',
 			label: 'Impostor oculto',
 			desc: 'El impostor no sabe que lo es: recibe una palabra parecida (una pista) y cree que es inocente'
 		},
-		{ key: 'random', label: 'Aleatorio', desc: 'Se elige una variante al azar al empezar cada partida' }
+		{ key: 'random', icon: '🎲', label: 'Aleatorio', desc: 'Se elige una variante al azar al empezar cada partida' }
 	];
 
 	const activeSpecialMode = $derived<SpecialModeKey>(
@@ -114,6 +125,7 @@
 							? 'noCategory'
 							: 'normal'
 	);
+	const activeModeInfo = $derived(SPECIAL_MODES.find((m) => m.key === activeSpecialMode)!);
 
 	function selectSpecialMode(key: SpecialModeKey) {
 		updateConfig({
@@ -302,19 +314,26 @@
 
 		<section class="mb-6 border border-wire bg-ink-raised/50 p-5">
 			<span class="mb-3 block text-xs tracking-[0.3em] text-amber uppercase">Variante de juego</span>
-			<div class="space-y-2">
+			<div class="grid grid-cols-3 gap-2">
 				{#each SPECIAL_MODES as mode (mode.key)}
 					{@const selected = activeSpecialMode === mode.key}
 					<button
 						type="button"
 						onclick={() => selectSpecialMode(mode.key)}
-						class={`block w-full border px-4 py-2.5 text-left transition-colors ${selected ? 'border-amber bg-amber/10' : 'border-wire hover:border-amber-dim'}`}
+						title={mode.label}
+						class={`flex flex-col items-center gap-1 border px-2 py-2.5 text-center transition-colors ${selected ? 'border-amber bg-amber/10' : 'border-wire hover:border-amber-dim'}`}
 					>
-						<span class={`block text-sm font-semibold ${selected ? 'text-amber' : 'text-paper'}`}>{mode.label}</span>
-						<span class="block text-xs text-paper-dim">{mode.desc}</span>
+						<span class="text-lg leading-none">{mode.icon}</span>
+						<span class={`text-[0.65rem] leading-tight font-semibold ${selected ? 'text-amber' : 'text-paper-dim'}`}>
+							{mode.label}
+						</span>
 					</button>
 				{/each}
 			</div>
+			<p class="mt-3 text-xs text-paper-dim">
+				<span class="font-semibold text-amber">{activeModeInfo.icon} {activeModeInfo.label}</span>
+				— {activeModeInfo.desc}
+			</p>
 		</section>
 
 		<section class="mb-6 border border-wire bg-ink-raised/50 p-5">
