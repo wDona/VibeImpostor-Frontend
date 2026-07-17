@@ -140,6 +140,11 @@
 </script>
 
 <div class="mx-auto min-h-screen max-w-2xl px-6 py-12">
+	{#if room.state !== 'LOBBY'}
+		<div class="mb-6 border border-amber bg-amber/10 px-4 py-3 text-center text-sm text-amber">
+			Partida en curso. Esperando a la siguiente...
+		</div>
+	{/if}
 	<header class="mb-8 flex items-start justify-between gap-4">
 		<div>
 			<p class="text-xs tracking-[0.3em] text-amber-dim uppercase">Sala de espera</p>
@@ -380,13 +385,15 @@
 			</label>
 		</section>
 
-		<button
-			onclick={startGame}
-			disabled={!canStart}
-			class="w-full bg-blood py-4 text-sm font-bold tracking-[0.2em] text-paper uppercase transition-transform enabled:hover:bg-blood-bright disabled:cursor-not-allowed disabled:opacity-30"
-		>
-			{canStart ? 'Comenzar partida' : `Se necesitan ${neededMore} jugadores más`}
-		</button>
+		{#if room.state === 'LOBBY'}
+			<button
+				onclick={startGame}
+				disabled={!canStart}
+				class="w-full bg-blood py-4 text-sm font-bold tracking-[0.2em] text-paper uppercase transition-transform enabled:hover:bg-blood-bright disabled:cursor-not-allowed disabled:opacity-30"
+			>
+				{canStart ? 'Comenzar partida' : `Se necesitan ${neededMore} jugadores más`}
+			</button>
+		{/if}
 	{:else}
 		{@const activeMode = SPECIAL_MODES.find((m) => m.key === activeSpecialMode)!}
 		<section class="mb-6 space-y-2 border border-wire bg-ink-raised/50 p-5 text-sm">

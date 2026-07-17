@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { gameStore } from '$lib/ws.svelte';
 	import PlayerAvatar from './PlayerAvatar.svelte';
+	import LeaveGameButton from './LeaveGameButton.svelte';
 
 	const room = $derived(gameStore.room!);
 	const isGuessing = $derived(room.pendingGuessImpostorId === gameStore.yourPlayerId);
@@ -18,6 +19,7 @@
 	}
 </script>
 
+<LeaveGameButton />
 <div class="flex min-h-screen flex-col items-center justify-center px-6 text-center">
 	<p class="mb-2 text-xs tracking-[0.35em] text-blood-bright uppercase">Última oportunidad</p>
 

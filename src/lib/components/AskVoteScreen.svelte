@@ -1,6 +1,10 @@
 <script lang="ts">
 	import { gameStore } from '$lib/ws.svelte';
 	import Countdown from './Countdown.svelte';
+	import LeaveGameButton from './LeaveGameButton.svelte';
+
+	const room = $derived(gameStore.room!);
+	const isSpectator = $derived(room.players.find((p) => p.id === gameStore.yourPlayerId)?.isSpectator ?? false);
 
 	let answered = $state(false);
 
@@ -10,6 +14,7 @@
 	}
 </script>
 
+<LeaveGameButton />
 <div class="flex min-h-screen flex-col items-center justify-center px-6 text-center">
 	<p class="mb-2 text-xs tracking-[0.35em] text-amber uppercase">Ronda terminada</p>
 	<h1 class="font-display mb-6 text-4xl font-black text-paper italic">¿Alguien sospecha algo?</h1>
@@ -20,7 +25,9 @@
 		</p>
 	{/if}
 
-	{#if !answered}
+	{#if isSpectator}
+		<p class="text-sm text-paper-dim italic">Eres espectador, no puedes votar.</p>
+	{:else if !answered}
 		<div class="flex gap-4">
 			<button onclick={() => answer(true)} class="bg-blood px-8 py-3 text-sm font-bold tracking-widest text-paper uppercase hover:bg-blood-bright">
 				Sí, votar

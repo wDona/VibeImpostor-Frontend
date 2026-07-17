@@ -1,20 +1,40 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import { gameStore } from '$lib/ws.svelte';
 
 	let mode = $state<'create' | 'join'>('create');
 	let playerName = $state('');
 	let roomCode = $state('');
 
+	onMount(() => {
+		playerName = localStorage.getItem('impostor_last_name') ?? '';
+		roomCode = localStorage.getItem('impostor_last_code') ?? '';
+	});
+
 	function submit(e: Event) {
 		e.preventDefault();
 		const name = playerName.trim();
 		if (!name) return;
+		localStorage.setItem('impostor_last_name', name);
 		if (mode === 'create') {
 			gameStore.send({ type: 'CreateRoom', playerName: name });
 		} else {
 			const code = roomCode.trim().toUpperCase();
 			if (!code) return;
+			localStorage.setItem('impostor_last_code', code);
 			gameStore.send({ type: 'JoinRoom', roomCode: code, playerName: name });
+		}
+	}
+
+	async function pasteCode() {
+		try {
+			const text = await navigator.clipboard.readText();
+			roomCode = text
+				.toUpperCase()
+				.replace(/[^A-Z0-9]/g, '')
+				.slice(0, 6);
+		} catch {
+			/* portapapeles no disponible o permiso denegado */
 		}
 	}
 </script>
@@ -64,21 +84,23 @@
 				{#if mode === 'join'}
 					<label class="block">
 						<span class="mb-1.5 block text-[0.65rem] tracking-widest text-paper-dim uppercase">Código de sala</span>
-						<input
-							bind:value={roomCode}
-							maxlength="6"
-							placeholder="XXXXXX"
-							class="w-full border-b-2 border-wire bg-transparent px-1 py-2 font-display text-2xl tracking-[0.3em] text-blood-bright uppercase outline-none placeholder:text-paper-dim/30 focus:border-blood"
-						/>
+						<div class="flex items-center gap-2">
+							<input
+								bind:value={roomCode}
+								maxlength="6"
+								placeholder="XXXXXX"
+								class="w-full border-b-2 border-wire bg-transparent px-1 py-2 font-display text-2xl tracking-[0.3em] text-blood-bright uppercase outline-none placeholder:text-paper-dim/30 focus:border-blood"
+							/>
+							<button
+								type="button"
+								onclick={pasteCode}
+								class="shrink-0 border border-wire px-2.5 py-1.5 text-[0.6rem] tracking-widest text-paper-dim uppercase hover:border-blood-bright hover:text-blood-bright"
+							>
+								Pegar
+							</button>
+						</div>
 					</label>
 				{/if}
-
-				{#if gameStore.error}
-					<p class="border-l-2 border-blood-bright bg-blood/10 px-3 py-2 text-sm text-blood-bright">
-						{gameStore.error}
-					</p>
-				{/if}
-
 				<button
 					type="submit"
 					class={`w-full py-3 text-sm font-bold tracking-widest uppercase transition-transform active:scale-[0.98] ${

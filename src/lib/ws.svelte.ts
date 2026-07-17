@@ -1,10 +1,35 @@
 import { WS_URL } from './config';
-import { defaultRoomConfig, type ClientMessage, type RoomConfig, type RoomSnapshot, type Role, type ServerMessage } from './protocol';
+import {
+	BOTH_IMPOSTORS_ID,
+	NOBODY_VOTE_ID,
+	PUNISHMENT_PREFIX,
+	WRONG_CLAIM_PREFIX,
+	defaultRoomConfig,
+	type ClientMessage,
+	type RoomConfig,
+	type RoomSnapshot,
+	type Role,
+	type ServerMessage
+} from './protocol';
 
 // kotlinx.serialization usa el nombre completo cualificado de la clase Kotlin
 // como discriminador "type" en el wire — no el nombre corto del sealed member.
 const CLIENT_PREFIX = 'org.example.project.protocol.ClientMessage.';
 const SERVER_PREFIX = 'org.example.project.protocol.ServerMessage.';
+
+// Máquina de estados de pantalla explícita (igual que GameViewModel.kt) — NO se
+// deriva reactivamente de room.state. Unirse a media partida siempre aterriza en
+// LOBBY (banner "partida en curso") hasta que llega el próximo evento en vivo.
+export type Screen =
+	| 'HOME'
+	| 'LOBBY'
+	| 'GAME'
+	| 'ASK_VOTE'
+	| 'VOTING'
+	| 'ROUND_RESULT'
+	| 'IMPOSTOR_GUESSING'
+	| 'IMPOSTOR_GUESSING_RESULT'
+	| 'RESULT';
 
 interface VotingInfo {
 	candidateIds: string[];
@@ -51,15 +76,21 @@ class GameStore {
 	connected = $state(false);
 	yourPlayerId = $state<string | null>(null);
 	room = $state<RoomSnapshot | null>(null);
+	screen = $state<Screen>('HOME');
 
 	yourRole = $state<Role | null>(null);
 	contentIsWord = $state(false);
 	content = $state<string | null>(null);
 	hintList = $state<string[]>([]);
+	gameStartedAtMs = $state<number | null>(null);
 
 	askVoteDeadline = $state<number | null>(null);
 	voting = $state<VotingInfo | null>(null);
+	votedPlayerIds = $state<string[]>([]);
 	votingResult = $state<VotingResultInfo | null>(null);
+	// jugador expulsado (o voterId si WRONG_CLAIM_PREFIX) -> mapa de votos de esa ronda.
+	// Se acumula durante toda la partida, solo se resetea en GameStarted.
+	eliminationVotes = $state<Record<string, Record<string, string>>>({});
 	endGameProposal = $state<EndGameProposal | null>(null);
 	lastWordPlayed = $state<{ playerId: string; word: string } | null>(null);
 
@@ -107,38 +138,81 @@ class GameStore {
 		this.reset();
 	}
 
+	// Botón "Volver al lobby" de ImpostorGuessingResultScreen: transición puramente
+	// local (no manda mensaje), igual que el original.
+	continueToResults() {
+		this.screen = 'RESULT';
+	}
+
 	reset() {
 		this.yourPlayerId = null;
 		this.room = null;
+		this.screen = 'HOME';
 		this.yourRole = null;
 		this.content = null;
 		this.hintList = [];
+		this.gameStartedAtMs = null;
 		this.askVoteDeadline = null;
 		this.voting = null;
+		this.votedPlayerIds = [];
 		this.votingResult = null;
+		this.eliminationVotes = {};
 		this.endGameProposal = null;
 		this.lastWordPlayed = null;
 		this.error = null;
 	}
 
+	private registerEliminationVotes(ejectedPlayerId: string | null, votes: Record<string, string>) {
+		if (!ejectedPlayerId || ejectedPlayerId === NOBODY_VOTE_ID) return;
+		if (ejectedPlayerId.startsWith(PUNISHMENT_PREFIX)) return;
+		if (ejectedPlayerId === BOTH_IMPOSTORS_ID) {
+			const room = this.room;
+			if (!room) return;
+			for (const p of room.players) {
+				if (room.impostorIds.includes(p.id) && p.isSpectator) {
+					this.eliminationVotes = { ...this.eliminationVotes, [p.id]: votes };
+				}
+			}
+			return;
+		}
+		if (ejectedPlayerId.startsWith(WRONG_CLAIM_PREFIX)) {
+			const voterId = ejectedPlayerId.slice(WRONG_CLAIM_PREFIX.length);
+			this.eliminationVotes = { ...this.eliminationVotes, [voterId]: votes };
+			return;
+		}
+		this.eliminationVotes = { ...this.eliminationVotes, [ejectedPlayerId]: votes };
+	}
+
 	private handleMessage(msg: ServerMessage) {
 		switch (msg.type) {
-			case 'Joined':
+			case 'Joined': {
 				this.yourPlayerId = msg.yourPlayerId;
 				this.room = normalizeRoom(msg.room);
+				this.screen = this.room.state === 'FINISHED' || this.room.state === 'REMATCH' ? 'RESULT' : 'LOBBY';
 				break;
-			case 'RoomUpdated':
+			}
+			case 'RoomUpdated': {
 				this.room = normalizeRoom(msg.room);
+				if (this.room.state === 'FINISHED') {
+					if (this.screen === 'IMPOSTOR_GUESSING') this.screen = 'IMPOSTOR_GUESSING_RESULT';
+					else if (['ROUND_RESULT', 'GAME', 'VOTING', 'ASK_VOTE'].includes(this.screen)) this.screen = 'RESULT';
+				} else if (this.room.state === 'IN_GAME' && this.screen === 'IMPOSTOR_GUESSING') {
+					this.screen = 'GAME';
+				}
 				break;
+			}
 			case 'GameStarted':
 				this.room = normalizeRoom(msg.room);
+				this.screen = 'GAME';
 				this.yourRole = msg.yourRole;
 				this.contentIsWord = msg.contentIsWord;
 				this.content = msg.content;
 				this.hintList = msg.hintList ?? [];
+				this.gameStartedAtMs = Date.now();
+				this.eliminationVotes = {};
+				this.votingResult = null;
 				this.askVoteDeadline = null;
 				this.voting = null;
-				this.votingResult = null;
 				break;
 			case 'TurnChanged':
 				if (this.room) {
@@ -151,16 +225,21 @@ class GameStore {
 				this.lastWordPlayed = { playerId: msg.playerId, word: msg.word };
 				break;
 			case 'AskWantVote':
+				this.screen = 'ASK_VOTE';
 				this.askVoteDeadline = msg.deadlineEpochMs;
 				break;
 			case 'VotingStarted':
+				this.screen = 'VOTING';
 				this.askVoteDeadline = null;
+				this.votedPlayerIds = [];
 				this.voting = { candidateIds: msg.candidateIds, deadlineEpochMs: msg.deadlineEpochMs };
 				break;
 			case 'VoteCast':
+				if (!this.votedPlayerIds.includes(msg.voterId)) this.votedPlayerIds = [...this.votedPlayerIds, msg.voterId];
 				break;
 			case 'VotingResult':
 				this.room = normalizeRoom(msg.room);
+				this.screen = 'ROUND_RESULT';
 				this.voting = null;
 				this.votingResult = {
 					ejectedPlayerId: msg.ejectedPlayerId,
@@ -169,28 +248,31 @@ class GameStore {
 					voteTypes: msg.voteTypes ?? {},
 					punishmentPlayerId: msg.punishmentPlayerId ?? null
 				};
+				this.registerEliminationVotes(msg.ejectedPlayerId, msg.votes ?? {});
 				break;
 			case 'RoundContinues':
 				this.room = normalizeRoom(msg.room);
-				this.votingResult = null;
+				this.screen = 'GAME';
 				break;
 			case 'ProceedToGuessing':
 				this.room = normalizeRoom(msg.room);
-				this.votingResult = null;
+				this.screen = 'IMPOSTOR_GUESSING';
 				break;
 			case 'GameEnded':
 				this.room = normalizeRoom(msg.room);
 				this.voting = null;
-				this.votingResult = null;
+				if (this.screen !== 'IMPOSTOR_GUESSING_RESULT') this.screen = 'RESULT';
 				break;
 			case 'ErrorMessage':
 				this.error = msg.text;
 				break;
 			case 'RematchStarted':
 				this.room = normalizeRoom(msg.room);
+				this.screen = 'RESULT';
 				break;
 			case 'ReturnedToLobby':
 				this.room = normalizeRoom(msg.room);
+				this.screen = 'LOBBY';
 				this.yourRole = null;
 				this.content = null;
 				this.hintList = [];

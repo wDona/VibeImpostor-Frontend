@@ -8,6 +8,7 @@
 	import VotingScreen from '$lib/components/VotingScreen.svelte';
 	import RoundResultScreen from '$lib/components/RoundResultScreen.svelte';
 	import ImpostorGuessingScreen from '$lib/components/ImpostorGuessingScreen.svelte';
+	import ImpostorGuessingResultScreen from '$lib/components/ImpostorGuessingResultScreen.svelte';
 	import ResultScreen from '$lib/components/ResultScreen.svelte';
 
 	onMount(() => {
@@ -15,20 +16,22 @@
 	});
 </script>
 
-{#if !gameStore.room}
+{#if gameStore.screen === 'HOME'}
 	<HomeScreen />
-{:else if gameStore.votingResult}
-	<RoundResultScreen />
-{:else if gameStore.room.state === 'LOBBY'}
+{:else if gameStore.screen === 'LOBBY'}
 	<LobbyScreen />
-{:else if gameStore.room.state === 'IN_GAME'}
+{:else if gameStore.screen === 'GAME'}
 	<GameScreen />
-{:else if gameStore.room.state === 'ASK_VOTE'}
+{:else if gameStore.screen === 'ASK_VOTE'}
 	<AskVoteScreen />
-{:else if gameStore.room.state === 'VOTING'}
+{:else if gameStore.screen === 'VOTING'}
 	<VotingScreen />
-{:else if gameStore.room.state === 'IMPOSTORS_GUESSING'}
+{:else if gameStore.screen === 'ROUND_RESULT'}
+	<RoundResultScreen />
+{:else if gameStore.screen === 'IMPOSTOR_GUESSING'}
 	<ImpostorGuessingScreen />
-{:else if gameStore.room.state === 'FINISHED' || gameStore.room.state === 'REMATCH'}
+{:else if gameStore.screen === 'IMPOSTOR_GUESSING_RESULT'}
+	<ImpostorGuessingResultScreen />
+{:else if gameStore.screen === 'RESULT'}
 	<ResultScreen />
 {/if}
