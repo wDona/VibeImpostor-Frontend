@@ -13,6 +13,9 @@
 	const neededMore = $derived(Math.max(0, MIN_PLAYERS - activeCount));
 	const maxImpostors = $derived(room.players.length);
 	const impostorLocked = $derived(config.winOnFirstEjection || config.singleWordRound || config.hiddenImpostor);
+	const progressiveHintsExcluded = $derived(
+		config.randomVariant && (config.winOnFirstEjection || config.singleWordRound)
+	);
 
 	let codeHidden = $state(false);
 	let showCategoryDialog = $state(false);
@@ -127,7 +130,7 @@
 			key: 'random',
 			icon: '🎲',
 			label: 'Aleatorio',
-			desc: 'Se elige una variante al azar al empezar cada partida — excluye "Gana en primera expulsión" y "Una sola ronda", y siempre fuerza 1 impostor'
+			desc: 'Se elige una variante al azar al empezar cada partida — excluye "Gana en primera expulsión" y "Una sola ronda", y siempre fuerza 1 impostor. Si activas alguna de esas dos, "Pistas progresivas" también queda excluido de la tirada.'
 		}
 	];
 
@@ -336,11 +339,19 @@
 			<div class="grid grid-cols-3 gap-2">
 				{#each SPECIAL_MODES as mode (mode.key)}
 					{@const selected = activeSpecialMode === mode.key}
+					{@const isDisabled = mode.key === 'progressiveHints' && progressiveHintsExcluded}
 					<button
 						type="button"
-						onclick={() => selectSpecialMode(mode.key)}
-						title={mode.label}
-						class={`flex flex-col items-center gap-1 border px-2 py-2.5 text-center transition-colors ${selected ? 'border-amber bg-amber/10' : 'border-wire hover:border-amber-dim'}`}
+						onclick={() => !isDisabled && selectSpecialMode(mode.key)}
+						disabled={isDisabled}
+						title={isDisabled ? 'Excluido: incompatible con Gana en primera expulsión / Una sola ronda' : mode.label}
+						class={`flex flex-col items-center gap-1 border px-2 py-2.5 text-center transition-colors ${
+							isDisabled
+								? 'cursor-not-allowed border-wire opacity-30'
+								: selected
+									? 'border-amber bg-amber/10'
+									: 'border-wire hover:border-amber-dim'
+						}`}
 					>
 						<span class="text-lg leading-none">{mode.icon}</span>
 						<span class={`text-[0.65rem] leading-tight font-semibold ${selected ? 'text-amber' : 'text-paper-dim'}`}>
