@@ -187,7 +187,10 @@ class GameStore {
 		if (this.pendingConfig) {
 			const config = this.pendingConfig;
 			this.pendingConfig = null;
+			// Caduca sola: si el server ignora un campo que no conoce, su eco no
+			// coincidirá nunca y nos quedaríamos descartando sus configs para siempre.
 			this.awaitingConfig = JSON.stringify(config);
+			setTimeout(() => (this.awaitingConfig = null), 3000);
 			this.send({ type: 'UpdateConfig', config });
 		}
 	}
