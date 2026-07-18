@@ -23,6 +23,11 @@ const SERVER_PREFIX = 'org.example.project.protocol.ServerMessage.';
 // Sesión persistida para poder mandar RejoinRoom tras un cierre del socket (móvil
 // en background, red inestable) — el server da un periodo de gracia antes de
 // expulsar de verdad (ver disconnectTimeoutSeconds en RoomConfig).
+//
+// sessionStorage, NO localStorage: es por pestaña y sobrevive al recargar. Con
+// localStorage dos pestañas del mismo navegador comparten la clave y la última
+// en unirse pisa el playerId de la otra — al recargar, la primera reconectaba
+// como el jugador de la segunda (el host perdía el host y el lobby se bloqueaba).
 const SESSION_KEY = 'impostor_session';
 
 interface StoredSession {
@@ -31,16 +36,16 @@ interface StoredSession {
 }
 
 function saveSession(session: StoredSession) {
-	localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+	sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));
 }
 
 function clearSession() {
-	localStorage.removeItem(SESSION_KEY);
+	sessionStorage.removeItem(SESSION_KEY);
 }
 
 function loadSession(): StoredSession | null {
 	try {
-		const raw = localStorage.getItem(SESSION_KEY);
+		const raw = sessionStorage.getItem(SESSION_KEY);
 		return raw ? JSON.parse(raw) : null;
 	} catch {
 		return null;
