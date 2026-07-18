@@ -72,6 +72,26 @@ export function importPack(json: string) {
 	});
 }
 
+// Una palabra es un string suelto, o un objeto si tiene pistas (formato del import).
+export type PackWord = string | { text: string; hints?: string[] };
+
+export interface PackContent {
+	name: string;
+	language: string;
+	categories: { name: string; words: PackWord[] }[];
+}
+
+export function getPackContent(id: number) {
+	return request<PackContent>(`/packs/${id}`);
+}
+
+export function updatePack(id: number, content: PackContent) {
+	return request<{ success: boolean }>(`/packs/${id}`, {
+		method: 'PUT',
+		body: JSON.stringify({ json: JSON.stringify(content) })
+	});
+}
+
 export function deletePack(id: number) {
 	return request<{ success: boolean }>(`/packs/${id}`, { method: 'DELETE' });
 }

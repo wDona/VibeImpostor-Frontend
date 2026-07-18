@@ -95,6 +95,75 @@
 		}
 	}
 
+	// El editor trabaja con las palabras de cada categoría como texto plano, una por
+	// línea, igual que el formulario de crear. Las pistas van tras "|" separadas por comas.
+	interface EditableCategory {
+		name: string;
+		words: string;
+	}
+
+	let editingPack = $state<{ id: number; name: string; language: string; categories: EditableCategory[] } | null>(null);
+	let savingPack = $state(false);
+
+	function wordToLine(word: api.PackWord): string {
+		if (typeof word === 'string') return word;
+		const hints = word.hints?.filter(Boolean) ?? [];
+		return hints.length ? `${word.text} | ${hints.join(', ')}` : word.text;
+	}
+
+	function lineToWord(line: string): api.PackWord | null {
+		const [rawText, rawHints] = line.split('|');
+		const text = rawText.trim();
+		if (!text) return null;
+		const hints = (rawHints ?? '')
+			.split(',')
+			.map((h) => h.trim())
+			.filter(Boolean);
+		return hints.length ? { text, hints } : text;
+	}
+
+	async function startEdit(id: number) {
+		packError = null;
+		try {
+			const content = await api.getPackContent(id);
+			editingPack = {
+				id,
+				name: content.name,
+				language: content.language,
+				categories: content.categories.map((c) => ({
+					name: c.name,
+					words: c.words.map(wordToLine).join('\n')
+				}))
+			};
+		} catch (e) {
+			packError = e instanceof Error ? e.message : 'No se pudo abrir el paquete';
+		}
+	}
+
+	async function saveEdit() {
+		if (!editingPack) return;
+		savingPack = true;
+		packError = null;
+		try {
+			await api.updatePack(editingPack.id, {
+				name: editingPack.name.trim(),
+				language: editingPack.language,
+				categories: editingPack.categories
+					.filter((c) => c.name.trim())
+					.map((c) => ({
+						name: c.name.trim(),
+						words: c.words.split('\n').map(lineToWord).filter((w) => w !== null)
+					}))
+			});
+			editingPack = null;
+			await loadPacks();
+		} catch (e) {
+			packError = e instanceof Error ? e.message : 'No se pudo guardar';
+		} finally {
+			savingPack = false;
+		}
+	}
+
 	async function doDelete(id: number) {
 		try {
 			await api.deletePack(id);
@@ -244,11 +313,75 @@
 			{:else}
 				<ul class="space-y-1.5">
 					{#each packs as pack (pack.id)}
-						<li class="flex items-center justify-between border-l-2 border-wire bg-ink-raised/60 px-4 py-2.5">
-							<span class="text-paper">{pack.name} <span class="text-xs text-paper-dim">({pack.language})</span></span>
-							<button onclick={() => doDelete(pack.id)} class="text-[0.6rem] tracking-widest text-paper-dim uppercase hover:text-blood-bright">
-								borrar
-							</button>
+						<li class="border-l-2 border-wire bg-ink-raised/60 px-4 py-2.5">
+							<div class="flex items-center justify-between">
+								<span class="text-paper">{pack.name} <span class="text-xs text-paper-dim">({pack.language})</span></span>
+								<div class="flex gap-3">
+									<button
+										onclick={() => (editingPack?.id === pack.id ? (editingPack = null) : startEdit(pack.id))}
+										class="text-[0.6rem] tracking-widest text-paper-dim uppercase hover:text-amber"
+									>
+										{editingPack?.id === pack.id ? 'cerrar' : 'editar'}
+									</button>
+									<button onclick={() => doDelete(pack.id)} class="text-[0.6rem] tracking-widest text-paper-dim uppercase hover:text-blood-bright">
+										borrar
+									</button>
+								</div>
+							</div>
+
+							{#if editingPack?.id === pack.id}
+								{@const edited = editingPack}
+								<div class="mt-4 space-y-4 border-t border-wire pt-4">
+									<input
+										bind:value={edited.name}
+										placeholder="Nombre del paquete"
+										class="w-full border border-wire bg-transparent px-3 py-2 text-sm text-paper outline-none focus:border-amber"
+									/>
+
+									{#each edited.categories as cat, i (i)}
+										<div class="space-y-2 border border-wire p-3">
+											<div class="flex items-center gap-2">
+												<input
+													bind:value={cat.name}
+													placeholder="Nombre de la categoría"
+													class="flex-1 border border-wire bg-transparent px-3 py-1.5 text-sm text-paper outline-none focus:border-amber"
+												/>
+												<button
+													onclick={() => (edited.categories = edited.categories.filter((_, j) => j !== i))}
+													class="px-2 text-[0.6rem] tracking-widest text-paper-dim uppercase hover:text-blood-bright"
+												>
+													quitar
+												</button>
+											</div>
+											<textarea
+												bind:value={cat.words}
+												rows="6"
+												placeholder={'Palabras (una por línea)\ncamión | grande, ruedas'}
+												class="w-full resize-y border border-wire bg-transparent px-3 py-2 text-sm text-paper outline-none placeholder:text-paper-dim/40 focus:border-amber"
+											></textarea>
+										</div>
+									{/each}
+
+									<button
+										onclick={() => (edited.categories = [...edited.categories, { name: '', words: '' }])}
+										class="w-full border border-wire py-2 text-[0.6rem] tracking-widest text-paper-dim uppercase hover:border-amber hover:text-amber"
+									>
+										+ añadir categoría
+									</button>
+
+									<p class="text-xs text-paper-dim italic">
+										Una palabra por línea. Para darle pistas: <span class="text-paper">palabra | pista1, pista2</span>
+									</p>
+
+									<button
+										onclick={saveEdit}
+										disabled={savingPack}
+										class="w-full bg-amber py-2.5 text-xs font-bold tracking-widest text-ink uppercase hover:bg-amber-dim disabled:opacity-40"
+									>
+										{savingPack ? 'Guardando...' : 'Guardar cambios'}
+									</button>
+								</div>
+							{/if}
 						</li>
 					{/each}
 				</ul>
