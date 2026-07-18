@@ -114,6 +114,12 @@
 		updateConfig({ voteTimeLimitSeconds: next });
 	}
 
+	function setDisconnectTimeout(delta: number) {
+		const next = config.disconnectTimeoutSeconds + delta;
+		if (next < 120 || next > 600) return;
+		updateConfig({ disconnectTimeoutSeconds: next });
+	}
+
 	type SpecialModeKey = 'normal' | 'noCategory' | 'progressiveHints' | 'hiddenImpostor' | 'random';
 
 	const SPECIAL_MODES: { key: SpecialModeKey; icon: string; label: string; desc: string }[] = [
@@ -230,6 +236,9 @@
 						{/if}
 						{#if p.id === gameStore.yourPlayerId}
 							<span class="text-[0.6rem] tracking-widest text-paper-dim uppercase">(tú)</span>
+						{/if}
+						{#if !p.connected}
+							<span class="text-[0.6rem] tracking-widest text-blood-bright uppercase">desconectado</span>
 						{/if}
 					</span>
 					{#if isHost && p.id !== gameStore.yourPlayerId}
@@ -362,6 +371,31 @@
 					</button>
 				</div>
 			</div>
+
+			<div>
+				<span class="mb-2 block text-xs tracking-[0.3em] text-amber uppercase">Tiempo antes de expulsar a un desconectado</span>
+				<div class="flex items-center gap-3">
+					<button
+						type="button"
+						onclick={() => setDisconnectTimeout(-30)}
+						disabled={config.disconnectTimeoutSeconds <= 120}
+						class="h-9 w-9 border border-wire text-paper disabled:cursor-not-allowed disabled:opacity-30"
+					>
+						−
+					</button>
+					<span class="w-14 text-center font-display text-xl font-bold text-paper">
+						{Math.round(config.disconnectTimeoutSeconds / 60)}min
+					</span>
+					<button
+						type="button"
+						onclick={() => setDisconnectTimeout(30)}
+						disabled={config.disconnectTimeoutSeconds >= 600}
+						class="h-9 w-9 border border-wire text-paper disabled:cursor-not-allowed disabled:opacity-30"
+					>
+						+
+					</button>
+				</div>
+			</div>
 		</section>
 
 		<section class="mb-6 border border-wire bg-ink-raised/50 p-5">
@@ -483,6 +517,7 @@
 			<p class="text-paper-dim">Modo de juego: <span class="text-paper">{config.gameMode === 'VOICE' ? 'Voz' : 'Texto'}</span></p>
 			<p class="text-paper-dim">Impostores: <span class="text-paper">{config.numImpostors === 1 ? '1' : `${config.minImpostors}-${config.numImpostors}`}</span></p>
 			<p class="text-paper-dim">Tiempo de voto: <span class="text-paper">{config.voteTimeLimitSeconds}s</span></p>
+			<p class="text-paper-dim">Tiempo antes de expulsar a un desconectado: <span class="text-paper">{Math.round(config.disconnectTimeoutSeconds / 60)}min</span></p>
 			<p class="text-paper-dim">Idioma de las palabras: <span class="text-paper">{config.language === 'en' ? 'English' : 'Español'}</span></p>
 			<p class="text-paper-dim">
 				Temas de palabras: <span class="text-paper">{config.selectedCategoryIds.length === 0 ? 'todos' : effectiveSelected.length}</span>

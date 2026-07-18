@@ -51,6 +51,7 @@ export interface RoomConfig {
 	punishmentVote: boolean;
 	hiddenImpostor: boolean;
 	randomVariant: boolean;
+	disconnectTimeoutSeconds: number;
 }
 
 export function defaultRoomConfig(): RoomConfig {
@@ -70,7 +71,8 @@ export function defaultRoomConfig(): RoomConfig {
 		progressiveHints: false,
 		punishmentVote: false,
 		hiddenImpostor: false,
-		randomVariant: false
+		randomVariant: false,
+		disconnectTimeoutSeconds: 120
 	};
 }
 
@@ -99,6 +101,7 @@ export type ClientMessage =
 	| { type: 'CreateRoom'; playerName: string; authToken?: string | null }
 	| { type: 'JoinRoom'; roomCode: string; playerName: string; authToken?: string | null }
 	| { type: 'LeaveRoom' }
+	| { type: 'RejoinRoom'; roomCode: string; playerId: string }
 	| { type: 'UpdateConfig'; config: RoomConfig }
 	| { type: 'StartGame' }
 	| { type: 'EndTurn' }

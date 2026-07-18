@@ -19,6 +19,33 @@ import {
 const CLIENT_PREFIX = 'org.example.project.protocol.ClientMessage.';
 const SERVER_PREFIX = 'org.example.project.protocol.ServerMessage.';
 
+
+// Sesión persistida para poder mandar RejoinRoom tras un cierre del socket (móvil
+// en background, red inestable) — el server da un periodo de gracia antes de
+// expulsar de verdad (ver disconnectTimeoutSeconds en RoomConfig).
+const SESSION_KEY = 'impostor_session';
+
+interface StoredSession {
+	roomCode: string;
+	playerId: string;
+}
+
+function saveSession(session: StoredSession) {
+	localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+}
+
+function clearSession() {
+	localStorage.removeItem(SESSION_KEY);
+}
+
+function loadSession(): StoredSession | null {
+	try {
+		const raw = localStorage.getItem(SESSION_KEY);
+		return raw ? JSON.parse(raw) : null;
+	} catch {
+		return null;
+	}
+}
 // Máquina de estados de pantalla explícita (igual que GameViewModel.kt) — NO se
 // deriva reactivamente de room.state. Unirse a media partida siempre aterriza en
 // LOBBY (banner "partida en curso") hasta que llega el próximo evento en vivo.
@@ -110,12 +137,22 @@ class GameStore {
 	spectatorJoinedNotice = $state<string | null>(null);
 	private updateConfigTimer: ReturnType<typeof setTimeout> | null = null;
 	private pendingConfig: RoomConfig | null = null;
+	// Última config enviada y aún sin eco del server. Mientras esté puesta, los
+	// RoomUpdated que llegan traen configs viejas (ecos de envíos anteriores) que
+	// pisarían el estado optimista local — ver handleMessage/RoomUpdated.
+	private awaitingConfig: string | null = null;
+	private rejoining = false;
 
 	connect() {
 		if (this.socket && this.socket.readyState <= WebSocket.OPEN) return;
 		const socket = new WebSocket(WS_URL);
 		socket.onopen = () => {
 			this.connected = true;
+			const session = loadSession();
+			if (session && !this.yourPlayerId) {
+				this.rejoining = true;
+				this.send({ type: 'RejoinRoom', roomCode: session.roomCode, playerId: session.playerId });
+			}
 		};
 		socket.onclose = () => {
 			this.connected = false;
@@ -150,6 +187,7 @@ class GameStore {
 		if (this.pendingConfig) {
 			const config = this.pendingConfig;
 			this.pendingConfig = null;
+			this.awaitingConfig = JSON.stringify(config);
 			this.send({ type: 'UpdateConfig', config });
 		}
 	}
@@ -199,6 +237,9 @@ class GameStore {
 		this.lastWordPlayed = null;
 		this.error = null;
 		this.spectatorJoinedNotice = null;
+		this.pendingConfig = null;
+		this.awaitingConfig = null;
+		clearSession();
 	}
 
 	private registerEliminationVotes(ejectedPlayerId: string | null, votes: Record<string, string>) {
@@ -227,12 +268,24 @@ class GameStore {
 			case 'Joined': {
 				this.yourPlayerId = msg.yourPlayerId;
 				this.room = normalizeRoom(msg.room);
+				this.rejoining = false;
+				saveSession({ roomCode: this.room.code, playerId: msg.yourPlayerId });
 				this.screen = this.room.state === 'FINISHED' || this.room.state === 'REMATCH' ? 'RESULT' : 'LOBBY';
 				break;
 			}
 			case 'RoomUpdated': {
 				const prevIds = new Set(this.room?.players.map((p) => p.id) ?? []);
+				const localConfig = this.room?.config;
 				this.room = normalizeRoom(msg.room);
+				// Config local sin confirmar: quédate con la nuestra hasta que el server
+				// eche el eco de la última que mandamos (evita el flicker a valores viejos).
+				if (localConfig && (this.pendingConfig || this.awaitingConfig)) {
+					if (!this.pendingConfig && JSON.stringify(this.room.config) === this.awaitingConfig) {
+						this.awaitingConfig = null;
+					} else {
+						this.room = { ...this.room, config: localConfig };
+					}
+				}
 				if (this.room.state !== 'LOBBY') {
 					const newSpectators = this.room.players.filter((p) => p.isSpectator && !prevIds.has(p.id));
 					if (newSpectators.length) {
@@ -313,6 +366,10 @@ class GameStore {
 				break;
 			case 'ErrorMessage':
 				this.error = msg.text;
+				if (this.rejoining) {
+					this.rejoining = false;
+					clearSession();
+				}
 				break;
 			case 'RematchStarted':
 				this.room = normalizeRoom(msg.room);
