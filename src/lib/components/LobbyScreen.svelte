@@ -19,6 +19,10 @@
 
 	let codeHidden = $state(false);
 	let showCategoryDialog = $state(false);
+	// selectedCategoryIds vacío = "todos los temas base" para el server, así que no
+	// hay forma de mandar "ninguno". Este flag deja que el diálogo muestre las
+	// casillas vacías (para marcar unas pocas a mano) sin cambiar esa semántica.
+	let noneChecked = $state(false);
 	let justCopied = $state(false);
 
 	function updateConfig(patch: Partial<RoomConfig>) {
@@ -64,7 +68,7 @@
 	const allCategoryIds = $derived(filteredCategories.map((c) => c.id));
 	const effectiveSelected = $derived(
 		config.selectedCategoryIds.length === 0
-			? allCategoryIds
+			? (noneChecked ? [] : allCategoryIds)
 			: config.selectedCategoryIds.filter((id) => allCategoryIds.includes(id))
 	);
 	const allCategoriesSelected = $derived(
@@ -83,6 +87,7 @@
 		const next = effectiveSelected.includes(id)
 			? effectiveSelected.filter((c) => c !== id)
 			: [...effectiveSelected, id];
+		noneChecked = next.length === 0;
 		updateConfig({ selectedCategoryIds: collapseIfAll(next) });
 	}
 
@@ -91,6 +96,7 @@
 		const next = allCategoriesSelected
 			? effectiveSelected.filter((id) => !filteredIds.includes(id))
 			: [...new Set([...effectiveSelected, ...filteredIds])];
+		noneChecked = next.length === 0;
 		updateConfig({ selectedCategoryIds: collapseIfAll(next) });
 	}
 
@@ -433,7 +439,7 @@
 		<section class="mb-6 border border-wire bg-ink-raised/50 p-5">
 			<button
 				type="button"
-				onclick={() => (showCategoryDialog = true)}
+				onclick={() => ((noneChecked = false), (showCategoryDialog = true))}
 				class="flex w-full items-center justify-between text-left"
 			>
 				<span class="text-xs tracking-[0.3em] text-amber uppercase">Temas de palabras</span>
