@@ -1,10 +1,12 @@
 <script lang="ts">
+	import { serverNow } from '$lib/clock';
+
 	let { deadlineEpochMs }: { deadlineEpochMs: number } = $props();
 
-	let now = $state(Date.now());
+	let now = $state(serverNow());
 
 	$effect(() => {
-		const id = setInterval(() => (now = Date.now()), 250);
+		const id = setInterval(() => (now = serverNow()), 250);
 		return () => clearInterval(id);
 	});
 

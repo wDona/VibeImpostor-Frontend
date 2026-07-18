@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { gameStore } from '$lib/ws.svelte';
+	import { syncClock } from '$lib/clock';
 	import HomeScreen from '$lib/components/HomeScreen.svelte';
 	import LobbyScreen from '$lib/components/LobbyScreen.svelte';
 	import GameScreen from '$lib/components/GameScreen.svelte';
@@ -12,6 +13,7 @@
 	import ResultScreen from '$lib/components/ResultScreen.svelte';
 
 	onMount(() => {
+		syncClock();
 		gameStore.connect();
 	});
 </script>
